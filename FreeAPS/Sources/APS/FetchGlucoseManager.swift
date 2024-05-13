@@ -297,8 +297,9 @@ final class BaseFetchGlucoseManager: FetchGlucoseManager, Injectable {
     private func overcalibrate(entries: [BloodGlucose]) -> [BloodGlucose] {
         // overcalibrate
         var overcalibration: ((Int) -> (Double))?
-        processQueue.sync {
-            overcalibration = calibrationService.calibrate
+
+        if let cal = calibrationService {
+            overcalibration = cal.calibrate
         }
 
         if let overcalibration = overcalibration {
