@@ -24,8 +24,14 @@ git clone --branch=<<branch>> --recurse-submodules https://github.com/nightscout
 cd Trio
 ```
 
-modify Config.xconfig to replace ##TEAM_ID## with your Apple Developer ID.
+Create a ConfigOverride.xcconfig file that contains your Apple Developer ID (something like `123A4BCDE5`). This will automate signing of the build targets in Xcode:
 
+Copy the command below, and replace `xxxxxxxxxx` by your Apple Developer ID before running the command in Terminal.
+```
+echo 'DEVELOPER_TEAM = xxxxxxxxxx' > ConfigOverride.xcconfig
+```
+
+Then launch Xcode and build the Trio app:
 ```
 xed .
 ```
