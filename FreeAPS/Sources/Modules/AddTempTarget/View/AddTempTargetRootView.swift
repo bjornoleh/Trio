@@ -7,6 +7,8 @@ extension AddTempTarget {
         let resolver: Resolver
         @StateObject var state = StateModel()
         @State private var isPromtPresented = false
+        @State private var isRemoveAlertPresented = false
+        @State private var removeAlert: Alert?
         @State private var isEditing = false
         @State private var selectedPreset: TempTarget?
         @State private var isEditSheetPresented = false
@@ -45,11 +47,20 @@ extension AddTempTarget {
                         ForEach(state.presets) { preset in
                             presetView(for: preset)
                                 .swipeActions {
-                                    Button(role: .destructive) {
-                                        state.removePreset(id: preset.id)
-                                    } label: {
+                                    Button(role: .none, action: {
+                                        removeAlert = Alert(
+                                            title: Text("Are you sure?"),
+                                            message: Text("Delete preset \n\(preset.displayName)?"),
+                                            primaryButton: .destructive(Text("Delete"), action: {
+                                                state.removePreset(id: preset.id)
+                                                isRemoveAlertPresented = false
+                                            }),
+                                            secondaryButton: .cancel()
+                                        )
+                                        isRemoveAlertPresented = true
+                                    }) {
                                         Label("Delete", systemImage: "trash")
-                                    }
+                                    }.tint(.red)
                                     Button {
                                         selectedPreset = preset
                                         state.newPresetName = preset.displayName
@@ -62,6 +73,9 @@ extension AddTempTarget {
                                         Label("Edit", systemImage: "square.and.pencil")
                                     }
                                     .tint(.blue)
+                                }
+                                .alert(isPresented: $isRemoveAlertPresented) {
+                                    removeAlert!
                                 }
                         }
                     }
@@ -192,20 +206,20 @@ extension AddTempTarget {
             Form {
                 Section(header: Text("Edit Preset")) {
                     TextField("Name", text: $state.newPresetName)
-                    Text(displayString)
+                    Text("Before change: \(displayString)")
                         .foregroundColor(.secondary)
                         .font(.caption)
                     HStack {
                         Text("New Target")
                         Spacer()
                         DecimalTextField("0", value: $state.low, formatter: formatter, cleanInput: true)
-                        Text(state.units.rawValue)
+                        Text(state.units.rawValue).foregroundColor(.secondary)
                     }
                     HStack {
                         Text("New Duration")
                         Spacer()
                         DecimalTextField("0", value: $state.duration, formatter: formatter, cleanInput: true)
-                        Text("min")
+                        Text("min").foregroundColor(.secondary)
                     }
                 }
                 Section {
@@ -213,7 +227,7 @@ extension AddTempTarget {
                         guard let selectedPreset = selectedPreset else { return }
                         state.updatePreset(
                             selectedPreset,
-                            low: state.units == .mmolL ? state.low.asMgdL : state.low
+                            low: state.low
                         )
                         isEditSheetPresented = false
                     }
@@ -278,24 +292,6 @@ extension AddTempTarget {
                     state.enactPreset(id: preset.id)
                 }
             }
-        }
-    }
-}
-
-extension AddTempTarget.StateModel {
-    func updatePreset(_ preset: TempTarget, low: Decimal) {
-        if let index = presets.firstIndex(where: { $0.id == preset.id }) {
-            presets[index] = TempTarget(
-                id: preset.id,
-                name: newPresetName,
-                createdAt: preset.createdAt,
-                targetTop: low,
-                targetBottom: low,
-                duration: duration,
-                enteredBy: preset.enteredBy,
-                reason: newPresetName
-            )
-            storage.storePresets(presets)
         }
     }
 }
