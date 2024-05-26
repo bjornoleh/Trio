@@ -16,6 +16,9 @@ extension OverrideProfilesConfig {
         @State private var alertSring = ""
         @State var isSheetPresented: Bool = false
         @State private var originalPreset: OverridePresets?
+        @State private var showDeleteAlert = false
+        @State private var indexToDelete: Int?
+        @State private var profileNameToDelete: String = ""
 
         @Environment(\.dismiss) var dismiss
         @Environment(\.managedObjectContext) var moc
@@ -257,15 +260,17 @@ extension OverrideProfilesConfig {
                             let preset = fetchedProfiles[index]
                             profilesView(for: preset)
                                 .swipeActions {
-                                    Button(role: .destructive) {
-                                        removeProfile(at: IndexSet(integer: index))
+                                    Button(role: .none) {
+                                        indexToDelete = index
+                                        profileNameToDelete = preset.name ?? "this profile"
+                                        showDeleteAlert = true
                                     } label: {
                                         Label("Delete", systemImage: "trash")
-                                    }
+                                    }.tint(.red)
 
                                     Button {
                                         selectedPreset = preset
-                                        state.populateSettings(from: preset)
+                                        state.profileName = preset.name ?? ""
                                         isEditSheetPresented = true
                                     } label: {
                                         Label("Edit", systemImage: "square.and.pencil")
@@ -376,6 +381,18 @@ extension OverrideProfilesConfig {
                 editPresetPopover
                     .padding()
             }
+            .alert(isPresented: $showDeleteAlert) {
+                Alert(
+                    title: Text("Delete profile override"),
+                    message: Text("Are you sure you want to delete\n\(profileNameToDelete)?"),
+                    primaryButton: .destructive(Text("Delete")) {
+                        if let index = indexToDelete {
+                            removeProfile(at: IndexSet(integer: index))
+                        }
+                    },
+                    secondaryButton: .cancel()
+                )
+            }
         }
 
         @ViewBuilder private func profilesView(for preset: OverridePresets) -> some View {
@@ -462,7 +479,7 @@ extension OverrideProfilesConfig {
                 state._indefinite != originalPreset.indefinite ||
                 state.override_target != (originalPreset.target != nil) ||
                 (state.override_target && targetInStateUnits != targetInPresetUnits) ||
-                //state.advancedSettings != originalPreset.advancedSettings ||
+                // state.advancedSettings != originalPreset.advancedSettings ||
                 state.smbIsOff != originalPreset.smbIsOff ||
                 state.smbIsScheduledOff != originalPreset.smbIsScheduledOff ||
                 state.isf != originalPreset.isf ||
