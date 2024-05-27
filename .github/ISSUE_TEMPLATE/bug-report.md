@@ -4,7 +4,7 @@ about: Create a report to help us fix things
 title: ''
 labels: 'bug,needs-triage'
 assignees: ''
-projects: 'nightscout/2'
+projects: 'bjornoleh/1'
 
 ---
 ## Describe the bug
