@@ -4,7 +4,7 @@ about: Suggest an idea for this project
 title: ''
 labels: 'feature,needs-triage'
 assignees: ''
-projects: 'nightscout/2'
+projects: 'bjornoleh/2'
 
 ---
 
