@@ -120,7 +120,7 @@ jobs:
         target_sync_branch: ${{ env.ALIVE_BRANCH }}
         shallow_since: 6 months ago
         target_repo_token: ${{ secrets.GH_PAT }}
-        upstream_sync_branch: ${{ env.UPSTREAM_BRANCH }}
+        upstream_sync_branch: alpha # default: ${{ env.UPSTREAM_BRANCH }}
         upstream_sync_repo: ${{ env.UPSTREAM_REPO }}
     
     # Display a sample message based on the sync output var 'has_new_commits'
