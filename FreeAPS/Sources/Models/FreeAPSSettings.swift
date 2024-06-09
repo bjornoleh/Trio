@@ -15,7 +15,7 @@ struct FreeAPSSettings: JSON, Equatable {
     var displayHR: Bool = false
     var cgm: CGMType = .none
     var cgmPluginIdentifier: String = ""
-    var uploadGlucose: Bool = true
+    var uploadGlucose: Bool = false
     var useCalendar: Bool = false
     var glucoseBadge: Bool = false
     var glucoseNotificationsAlways: Bool = false

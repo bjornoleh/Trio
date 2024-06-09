@@ -14,7 +14,7 @@
   "displayHR" : false,
   "cgm" : "none",
   "cgmManagerTypeByIdentifier":"",
-  "uploadGlucose" : true,
+  "uploadGlucose" : false,
   "useCalendar" : false,
   "glucoseBadge" : false,
   "glucoseNotificationsAlways" : false,
