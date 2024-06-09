@@ -90,7 +90,7 @@ extension AddCarbs {
                                             .fat && (((state.selection?.protein ?? 0) as NSDecimalNumber) as Decimal) ==
                                             state
                                             .protein
-                                    ) ? .secondary : .orange
+                                    ) ? .secondary : .gray
                             )
                             .disabled(
                                 (state.carbs <= 0 && state.fat <= 0 && state.protein <= 0) ||
@@ -138,11 +138,12 @@ extension AddCarbs {
                         .frame(maxWidth: .infinity, alignment: .center)
                 } footer: { Text(state.waitersNotepad().description) }
 
-                if !state.useFPUconversion {
-                    Section {
-                        mealPresets
-                    }
-                }
+                /* Hide mealPresets unless enabling useFPUconversion
+                 if !state.useFPUconversion {
+                     Section {
+                         mealPresets
+                     }
+                 } */
             }
             .onAppear(perform: configureView)
             .navigationBarItems(leading: Button("Close", action: state.hideModal))

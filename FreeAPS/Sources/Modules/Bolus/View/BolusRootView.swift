@@ -37,7 +37,20 @@ extension Bolus {
                         }
                     } else {
                         HStack {
-                            Text("Insulin recommended")
+                            Text("Insulin required")
+                            Spacer()
+                            Text(
+                                formatter
+                                    .string(from: state.insulinRequired as NSNumber)! +
+                                    NSLocalizedString(" U", comment: "Insulin unit")
+                            ).foregroundColor(.secondary)
+                        }.contentShape(Rectangle())
+                            .onTapGesture {
+                                if state.insulinRequired > 0 {
+                                    state.amount = state.insulinRequired }
+                            }
+                        HStack {
+                            Text("Måltidsbolus")
                             Spacer()
                             Text(
                                 formatter
@@ -58,12 +71,12 @@ extension Bolus {
                         }
                     }
                 }
-                header: { Text("Recommendation") }
+                //     header: { Text("Recommendation") }
 
                 if !state.waitForSuggestion {
                     Section {
                         HStack {
-                            Text("Amount")
+                            Text("Bolus")
                             Spacer()
                             DecimalTextField(
                                 "0",
@@ -75,7 +88,7 @@ extension Bolus {
                             Text(state.amount > state.maxBolus ? "⚠️" : "U").foregroundColor(.secondary)
                         }
                     }
-                    header: { Text("Bolus") }
+                    //       header: { Text("Bolus") }
                     Section {
                         Button { state.add() }
                         label: {
@@ -173,6 +186,7 @@ extension Bolus {
                 .font(.footnote)
                 .padding(.top, 10)
                 Divider()
+
                 // Formula
                 VStack(spacing: 5) {
                     let unit = NSLocalizedString(
@@ -181,6 +195,11 @@ extension Bolus {
                     )
                     let color: Color = (state.percentage != 100 && state.insulin > 0) ? .secondary : .blue
                     let fontWeight: Font.Weight = (state.percentage != 100 && state.insulin > 0) ? .regular : .bold
+                    HStack {
+                        Text("oref0 insulinReq").font(.callout).foregroundColor(.secondary)
+                        Text(state.insulinRequired.formatted() + unit).font(.callout).foregroundColor(.secondary)
+                    }
+                    Divider()
                     HStack {
                         Text(NSLocalizedString("Insulin recommended", comment: "") + ":").font(.callout)
                         Text(state.insulin.formatted() + unit).font(.callout).foregroundColor(color).fontWeight(fontWeight)
