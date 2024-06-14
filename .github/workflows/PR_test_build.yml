@@ -29,10 +29,9 @@ jobs:
         run: |
           gh pr checkout ${{ vars.PR_NUMBER }} --repo nightscout/Trio --recurse-submodules
           git submodule
-          git submodule foreach 'git switch trio'
-          git status
-          git submodule
           git submodule update --init --recursive
+          git submodule
+          git submodule foreach 'git switch trio'
           git status
           git submodule
 
