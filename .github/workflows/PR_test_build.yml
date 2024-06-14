@@ -22,12 +22,19 @@ jobs:
           token: ${{ secrets.GH_PAT }}
           submodules: recursive
           fetch-depth: 1
+
+      - name: Add loopandlearn remotes to submodules and fetch all
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          git submodule foreach 'git remote add loopandlearn https://github.com/loopandlearn/$(basename $name) && git fetch --all'
+          git submodule update --init --recursive
+          git submodule
           
       - name: Checkout pull request for building
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          git submodule foreach 'git remote add loopandlearn https://github.com/loopandlearn/$(basename $name)'
           gh pr checkout ${{ vars.PR_NUMBER }} --repo nightscout/Trio --recurse-submodules
           git submodule
           git submodule update --init --recursive
@@ -36,6 +43,7 @@ jobs:
           git status
           git submodule
           git submodule update --init --recursive
+          git status
           git submodule
 
       - name: Get ALTERNATIVE_BUNDLE_ID, or set empty value if it does not exist as a repository variable
