@@ -27,7 +27,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          gh pr checkout ${{ vars.PR_NUMBER }} --repo nightscout/Trio --recurse-submodules
+          gh pr checkout ${{ vars.PR_NUMBER }} --repo nightscout/Trio
           git submodule
           git submodule update --init --recursive
           git submodule
