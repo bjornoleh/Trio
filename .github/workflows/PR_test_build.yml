@@ -29,6 +29,12 @@ jobs:
         run: |
           gh pr checkout ${{ vars.PR_NUMBER }} --repo nightscout/Trio --recurse-submodules
           git submodule
+          git submodule foreach 'git switch trio'
+          git status
+          git submodule
+          git submodule update --init --recursive
+          git status
+          git submodule
 
       - name: Get ALTERNATIVE_BUNDLE_ID, or set empty value if it does not exist as a repository variable
         run: echo "ALTERNATIVE_BUNDLE_ID=${{ vars.ALTERNATIVE_BUNDLE_ID }}" >> $GITHUB_ENV
