@@ -27,12 +27,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          gh pr checkout ${{ vars.PR_NUMBER }} --repo nightscout/Trio
+          git submodule foreach 'git remote add loopandlearn https://github.com/loopandlearn/$(basename $name)'
+          gh pr checkout ${{ vars.PR_NUMBER }} --repo nightscout/Trio --recurse-submodules
           git submodule
           git submodule update --init --recursive
           git submodule
           git submodule foreach 'git switch trio'
           git status
+          git submodule
+          git submodule update --init --recursive
           git submodule
 
       - name: Get ALTERNATIVE_BUNDLE_ID, or set empty value if it does not exist as a repository variable
