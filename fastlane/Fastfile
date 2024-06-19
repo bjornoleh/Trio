@@ -73,7 +73,11 @@ platform :ios do
       api_key: api_key,
     )
 
-    current_build_number = "#{GITHUB_RUN_ID}" #|| previous_build_number + 1
+    if GITHUB_RUN_ID && !GITHUB_RUN_ID.empty?
+      current_build_number = GITHUB_RUN_ID
+    else
+      current_build_number = previous_build_number + 1
+    end
 
     increment_build_number(
       xcodeproj: "#{GITHUB_WORKSPACE}/FreeAPS.xcodeproj",
@@ -96,7 +100,11 @@ platform :ios do
       api_key: api_key,
     )
 
-    current_build_number = "#{GITHUB_RUN_ID}" #|| previous_build_number + 1
+    if GITHUB_RUN_ID && !GITHUB_RUN_ID.empty?
+      current_build_number = GITHUB_RUN_ID
+    else
+      current_build_number = previous_build_number + 1
+    end
 
     increment_build_number(
       xcodeproj: "#{GITHUB_WORKSPACE}/FreeAPS.xcodeproj",
