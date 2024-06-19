@@ -1,7 +1,17 @@
 name: Test-build pull request
-run-name: PR ${{ vars.PR_NUMBER }}
+run-name: PR ${{ vars.PR_NUMBER }} - Build ${{ github.run_number }}
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+      - develop
+      - feature/*
+  push:
+    branches:
+      - main
+      - develop
+      - feature/*
 
 jobs:
   # Builds Trio
@@ -61,6 +71,7 @@ jobs:
           FASTLANE_ISSUER_ID: ${{ secrets.FASTLANE_ISSUER_ID }}
           FASTLANE_KEY: ${{ secrets.FASTLANE_KEY }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
       
       # Upload to TestFlight
       - name: Fastlane upload to TestFlight
