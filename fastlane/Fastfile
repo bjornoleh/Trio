@@ -55,6 +55,7 @@ platform :ios do
   lane :build_trio do
     setup_ci if ENV['CI']
     BUNDLE_ID = ENV["BUNDLE_ID"]
+    GITHUB_RUN_ID = ENV["GITHUB_RUN_ID"]
 
     update_project_team(
       path: "#{GITHUB_WORKSPACE}/FreeAPS.xcodeproj",
@@ -72,7 +73,7 @@ platform :ios do
       api_key: api_key,
     )
 
-    current_build_number = ENV['GITHUB_RUN_ID'] || previous_build_number + 1
+    current_build_number = "#{GITHUB_RUN_ID}" || previous_build_number + 1
 
     increment_build_number(
       xcodeproj: "#{GITHUB_WORKSPACE}/FreeAPS.xcodeproj",
@@ -95,7 +96,7 @@ platform :ios do
       api_key: api_key,
     )
 
-    current_build_number = ENV['GITHUB_RUN_ID'] || previous_build_number + 1
+    current_build_number = "#{GITHUB_RUN_ID}" || previous_build_number + 1
 
     increment_build_number(
       xcodeproj: "#{GITHUB_WORKSPACE}/FreeAPS.xcodeproj",
