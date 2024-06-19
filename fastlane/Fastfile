@@ -68,16 +68,18 @@ platform :ios do
       key_content: "#{FASTLANE_KEY}"
     )
 
-    previous_build_number = latest_testflight_build_number(
-      app_identifier: "#{BUNDLE_ID}",
-      api_key: api_key,
-    ).to_i # Ensure this is an integer
+    #previous_build_number = latest_testflight_build_number(
+    #  app_identifier: "#{BUNDLE_ID}",
+    #  api_key: api_key,
+    #).to_i # Ensure this is an integer
 
-    if GITHUB_RUN_ID && !GITHUB_RUN_ID.empty?
-      current_build_number = GITHUB_RUN_ID
-    else
-      current_build_number = previous_build_number + 1
-    end
+    #if GITHUB_RUN_ID && !GITHUB_RUN_ID.empty?
+    #  current_build_number = GITHUB_RUN_ID
+    #else
+    #  current_build_number = previous_build_number + 1
+    #end
+
+    current_build_number = GITHUB_RUN_ID
 
     increment_build_number(
       xcodeproj: "#{GITHUB_WORKSPACE}/FreeAPS.xcodeproj",
@@ -95,16 +97,18 @@ platform :ios do
       ]
     )
 
-    previous_build_number = latest_testflight_build_number(
-      app_identifier: "#{BUNDLE_ID}",
-      api_key: api_key,
-    ).to_i # Ensure this is an integer
+    #previous_build_number = latest_testflight_build_number(
+    #  app_identifier: "#{BUNDLE_ID}",
+    #  api_key: api_key,
+    #).to_i # Ensure this is an integer
 
-    if GITHUB_RUN_ID && !GITHUB_RUN_ID.empty?
-      current_build_number = GITHUB_RUN_ID
-    else
-      current_build_number = previous_build_number + 1
-    end
+    #if GITHUB_RUN_ID && !GITHUB_RUN_ID.empty?
+    #  current_build_number = GITHUB_RUN_ID
+    #else
+    #  current_build_number = previous_build_number + 1
+    #end
+
+    current_build_number = GITHUB_RUN_ID
 
     increment_build_number(
       xcodeproj: "#{GITHUB_WORKSPACE}/FreeAPS.xcodeproj",
