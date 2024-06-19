@@ -55,7 +55,7 @@ platform :ios do
   lane :build_trio do
     setup_ci if ENV['CI']
     BUNDLE_ID = ENV["BUNDLE_ID"]
-    GITHUB_RUN_ID = ENV["GITHUB_RUN_ID"]
+    GITHUB_RUN_ID = ENV["GITHUB_RUN_ID"].to_i # Convert to integer
 
     update_project_team(
       path: "#{GITHUB_WORKSPACE}/FreeAPS.xcodeproj",
@@ -71,7 +71,7 @@ platform :ios do
     previous_build_number = latest_testflight_build_number(
       app_identifier: "#{BUNDLE_ID}",
       api_key: api_key,
-    )
+    ).to_i # Ensure this is an integer
 
     if GITHUB_RUN_ID && !GITHUB_RUN_ID.empty?
       current_build_number = GITHUB_RUN_ID
@@ -98,7 +98,7 @@ platform :ios do
     previous_build_number = latest_testflight_build_number(
       app_identifier: "#{BUNDLE_ID}",
       api_key: api_key,
-    )
+    ).to_i # Ensure this is an integer
 
     if GITHUB_RUN_ID && !GITHUB_RUN_ID.empty?
       current_build_number = GITHUB_RUN_ID
