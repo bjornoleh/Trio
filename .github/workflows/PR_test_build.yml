@@ -71,7 +71,7 @@ jobs:
           FASTLANE_ISSUER_ID: ${{ secrets.FASTLANE_ISSUER_ID }}
           FASTLANE_KEY: ${{ secrets.FASTLANE_KEY }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
-          GITHUB_RUN_NUMBER: ${{ github.run_id }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
       
       # Upload to TestFlight
       - name: Fastlane upload to TestFlight
