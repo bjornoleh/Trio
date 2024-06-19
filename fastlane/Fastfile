@@ -67,7 +67,12 @@ platform :ios do
       key_content: "#{FASTLANE_KEY}"
     )
 
-    current_build_number = ENV['GITHUB_RUN_NUMBER']
+    previous_build_number = latest_testflight_build_number(
+      app_identifier: "#{BUNDLE_ID}",
+      api_key: api_key,
+    )
+
+    current_build_number = ENV['GITHUB_RUN_ID'] || previous_build_number + 1
 
     increment_build_number(
       xcodeproj: "#{GITHUB_WORKSPACE}/FreeAPS.xcodeproj",
@@ -85,7 +90,12 @@ platform :ios do
       ]
     )
 
-    current_build_number = ENV['GITHUB_RUN_NUMBER']
+    previous_build_number = latest_testflight_build_number(
+      app_identifier: "#{BUNDLE_ID}",
+      api_key: api_key,
+    )
+
+    current_build_number = ENV['GITHUB_RUN_ID'] || previous_build_number + 1
 
     increment_build_number(
       xcodeproj: "#{GITHUB_WORKSPACE}/FreeAPS.xcodeproj",
