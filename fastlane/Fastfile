@@ -33,12 +33,19 @@ def parse_xcconfig_file(path)
     parts = line.split('=')
     next if parts.length < 2  # Skip lines without '='
     key, value = parts.map(&:strip)
-    # Replace $(DEVELOPMENT_TEAM) with ENV["TEAMID"]
-    value = value.gsub('$(DEVELOPMENT_TEAM)', TEAMID)
-    xcconfig[key] = value
-      end
-      xcconfig
+
+    # Replace $(DEVELOPMENT_TEAM) with TEAMID
+    if value.include?('$(DEVELOPMENT_TEAM)')
+      value = value.gsub('$(DEVELOPMENT_TEAM)', TEAMID)
+    else
+      # Search for any 10-character alphanumeric string between dots and replace it with TEAMID
+      value = value.gsub(/\.[a-zA-Z0-9]{10}\./) { |match| ".#{TEAMID}." }
     end
+
+    xcconfig[key] = value
+  end
+  xcconfig
+end
 
 # Path to config.xcconfig file
 xcconfig_path = "#{GITHUB_WORKSPACE}/Config.xcconfig"
