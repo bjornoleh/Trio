@@ -50,7 +50,7 @@ jobs:
       # Install project dependencies
       - name: Install project dependencies
         run: bundle install
-        
+
       - name: Download Build Number Artifact
         id: download-artifact
         uses: actions/download-artifact@v4
@@ -59,8 +59,20 @@ jobs:
           path: build_number
         continue-on-error: true
 
+      - name: Check if Build Number Artifact Exists
+        id: check-artifact
+        run: echo "Artifact exists"
+        continue-on-error: true
+      
       - name: Increment Build Number
         run: |
+          mkdir -p build_number
+          if [ -f build_number/build_number.txt ]; then
+            echo "Previous build number found."
+          else
+            echo "Previous build number not found. Setting to 0."
+            echo "0" > build_number/build_number.txt
+          fi
           bundle exec fastlane increment_build_number
           echo "BUILD_NUMBER=$(cat build_number/build_number.txt)" >> $GITHUB_ENV
 
