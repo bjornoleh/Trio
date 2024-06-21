@@ -41,7 +41,8 @@ jobs:
 
       - name: Use alternative bundle ID for PR test build
         if: ${{ env.ALTERNATIVE_BUNDLE_ID != '' }}
-        run: echo 'BUNDLE_IDENTIFIER = ${{ env.ALTERNATIVE_BUNDLE_ID }}' >> Config.xcconfig
+        run: |
+          sed -i 's/BUNDLE_IDENTIFIER = .*/BUNDLE_IDENTIFIER = ${{ env.ALTERNATIVE_BUNDLE_ID }}/' Config.xcconfig
 
       # Patch Fastlane Match to not print tables
       - name: Patch Match Tables
