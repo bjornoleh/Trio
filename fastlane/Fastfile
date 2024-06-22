@@ -123,11 +123,6 @@ platform :ios do
         "#{BUNDLE_ID}.LiveActivity"
       ]
     )
-
-    increment_build_number(
-      xcodeproj: "#{GITHUB_WORKSPACE}/FreeAPS.xcodeproj",
-      build_number: BUILD_NUMBER
-    )
     
     mapping = Actions.lane_context[
       SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING
