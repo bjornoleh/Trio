@@ -73,7 +73,7 @@ jobs:
             echo "Previous build number not found. Setting to 0."
             echo "0" > build_number/build_number.txt
           fi
-          bundle exec fastlane increment_build_number
+          bundle exec fastlane ios increment_build_number
           echo "BUILD_NUMBER=$(cat build_number/build_number.txt)" >> $GITHUB_ENV
         env:
           TEAMID: ${{ secrets.TEAMID }}
