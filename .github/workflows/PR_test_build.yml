@@ -75,6 +75,13 @@ jobs:
           fi
           bundle exec fastlane increment_build_number
           echo "BUILD_NUMBER=$(cat build_number/build_number.txt)" >> $GITHUB_ENV
+        env:
+          TEAMID: ${{ secrets.TEAMID }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+          FASTLANE_KEY_ID: ${{ secrets.FASTLANE_KEY_ID }}
+          FASTLANE_ISSUER_ID: ${{ secrets.FASTLANE_ISSUER_ID }}
+          FASTLANE_KEY: ${{ secrets.FASTLANE_KEY }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
 
       - name: Upload Build Number Artifact
         if: always()
