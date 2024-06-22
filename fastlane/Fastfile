@@ -60,7 +60,7 @@ ENV["BUNDLE_ID"] = xcconfig["BUNDLE_IDENTIFIER"]
 platform :ios do
 
   desc "Increment build number"
-  lane :increment_build_number do
+  lane :increment_buildnumber do
     setup_ci if ENV['CI']
     BUNDLE_ID = ENV["BUNDLE_ID"]
 
