@@ -78,12 +78,11 @@ extension Bolus {
                         HStack {
                             Text("Bolus")
                             Spacer()
-                            DecimalTextField(
-                                "0",
-                                value: $state.amount,
-                                formatter: formatter,
-                                autofocus: true,
-                                cleanInput: true
+                            TextFieldWithToolBar(
+                                text: $state.amount,
+                                placeholder: "0",
+                                shouldBecomeFirstResponder: true,
+                                numberFormatter: formatter
                             )
                             Text(state.amount > state.maxBolus ? "⚠️" : "U").foregroundColor(.secondary)
                         }

@@ -351,7 +351,7 @@ extension Home {
 
                     if let eventualBG = state.eventualBG {
                         Text(
-                            "⇢ " + eventualBGFormatter.string(
+                            "⇢ " + targetFormatter.string(
                                 from: (state.units == .mmolL ? eventualBG.asMmolL : Decimal(eventualBG)) as NSNumber
                             )!
                         )
