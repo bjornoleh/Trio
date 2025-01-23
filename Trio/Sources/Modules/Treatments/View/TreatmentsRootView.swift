@@ -280,6 +280,24 @@ extension Treatments {
 
                             HStack {
                                 HStack {
+                                    Text("insulinReq")
+                                }
+                                Spacer()
+                                Text(
+                                    formatter
+                                        .string(from: Double(state.insulinRequired) as NSNumber) ?? ""
+                                )
+                                Text(
+                                    NSLocalizedString(
+                                        " U",
+                                        comment: "Unit in number of units recommended by oref0 algorithm (keep the space character!)"
+                                    )
+                                ).foregroundColor(.secondary)
+                            }.contentShape(Rectangle())
+                                .onTapGesture { state.amount = state.insulinRequired }
+
+                            HStack {
+                                HStack {
                                     Text("Recommendation")
                                     Button(action: {
                                         state.showInfo.toggle()
