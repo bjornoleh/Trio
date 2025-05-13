@@ -13,7 +13,7 @@ extension TargetsEditor {
 
         var rateValues: [Decimal] {
             let settingsProvider = PickerSettingsProvider.shared
-            let glucoseSetting = PickerSetting(value: 0, step: 1, min: 72, max: 180, type: .glucose)
+            let glucoseSetting = PickerSetting(value: 110, step: 1, min: 72, max: 180, type: .glucose)
             return settingsProvider.generatePickerValues(from: glucoseSetting, units: units)
         }
 
@@ -89,7 +89,7 @@ extension TargetsEditor {
                 } catch {
                     debug(
                         .default,
-                        "\(DebuggingIdentifiers.failed) failed to upload targets to Nightscout: \(error.localizedDescription)"
+                        "\(DebuggingIdentifiers.failed) failed to upload targets to Nightscout: \(error)"
                     )
                 }
             }

@@ -16,12 +16,13 @@ extension AlgorithmAdvancedSettings {
         @Published var insulinPeakTime: Decimal = 75
         @Published var skipNeutralTemps: Bool = false
         @Published var unsuspendIfNoTemp: Bool = false
-        @Published var suspendZerosIOB: Bool = false
         @Published var min5mCarbimpact: Decimal = 8
         @Published var remainingCarbsFraction: Decimal = 1.0
         @Published var remainingCarbsCap: Decimal = 90
         @Published var noisyCGMTargetMultiplier: Decimal = 1.3
         @Published var insulinActionCurve: Decimal = 10
+        @Published var smbDeliveryRatio: Decimal = 0.5
+        @Published var smbInterval: Decimal = 3
 
         var pumpSettings: PumpSettings {
             provider.settings()
@@ -38,13 +39,13 @@ extension AlgorithmAdvancedSettings {
             subscribePreferencesSetting(\.insulinPeakTime, on: $insulinPeakTime) { insulinPeakTime = $0 }
             subscribePreferencesSetting(\.skipNeutralTemps, on: $skipNeutralTemps) { skipNeutralTemps = $0 }
             subscribePreferencesSetting(\.unsuspendIfNoTemp, on: $unsuspendIfNoTemp) { unsuspendIfNoTemp = $0 }
-            subscribePreferencesSetting(\.suspendZerosIOB, on: $suspendZerosIOB) { suspendZerosIOB = $0 }
-            subscribePreferencesSetting(\.suspendZerosIOB, on: $suspendZerosIOB) { suspendZerosIOB = $0 }
             subscribePreferencesSetting(\.min5mCarbimpact, on: $min5mCarbimpact) { min5mCarbimpact = $0 }
             subscribePreferencesSetting(\.remainingCarbsFraction, on: $remainingCarbsFraction) { remainingCarbsFraction = $0 }
             subscribePreferencesSetting(\.remainingCarbsCap, on: $remainingCarbsCap) { remainingCarbsCap = $0 }
             subscribePreferencesSetting(\.noisyCGMTargetMultiplier, on: $noisyCGMTargetMultiplier) {
                 noisyCGMTargetMultiplier = $0 }
+            subscribePreferencesSetting(\.smbDeliveryRatio, on: $smbDeliveryRatio) { smbDeliveryRatio = $0 }
+            subscribePreferencesSetting(\.smbInterval, on: $smbInterval) { smbInterval = $0 }
 
             insulinActionCurve = pumpSettings.insulinActionCurve
         }
@@ -73,7 +74,7 @@ extension AlgorithmAdvancedSettings {
                             } catch {
                                 debug(
                                     .default,
-                                    "\(DebuggingIdentifiers.failed) failed to upload DIA to Nightscout: \(error.localizedDescription)"
+                                    "\(DebuggingIdentifiers.failed) failed to upload DIA to Nightscout: \(error)"
                                 )
                             }
                         }

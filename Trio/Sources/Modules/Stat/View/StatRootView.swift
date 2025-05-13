@@ -130,7 +130,8 @@ extension Stat {
                             highLimit: state.highLimit,
                             lowLimit: state.lowLimit,
                             units: state.units,
-                            glucoseRangeStats: state.glucoseRangeStats
+                            glucoseRangeStats: state.glucoseRangeStats,
+                            timeInRangeType: state.timeInRangeType
                         )
                     }
                 }
@@ -142,16 +143,14 @@ extension Stat {
                 VStack(spacing: Constants.spacing) {
                     GlucoseSectorChart(
                         highLimit: state.highLimit,
-                        lowLimit: state.lowLimit,
                         units: state.units,
-                        glucose: state.glucoseFromPersistence
+                        glucose: state.glucoseFromPersistence,
+                        timeInRangeType: state.timeInRangeType
                     )
 
                     Divider()
 
                     GlucoseMetricsView(
-                        highLimit: state.highLimit,
-                        lowLimit: state.lowLimit,
                         units: state.units,
                         eA1cDisplayUnit: state.eA1cDisplayUnit,
                         glucose: state.glucoseFromPersistence

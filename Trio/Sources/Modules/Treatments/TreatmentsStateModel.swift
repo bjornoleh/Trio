@@ -31,6 +31,8 @@ extension Treatments {
         var threshold: Decimal = 0
         var maxBolus: Decimal = 0
         var maxExternal: Decimal { maxBolus * 3 }
+        var maxIOB: Decimal = 0
+        var maxCOB: Decimal = 0
         var errorString: Decimal = 0
         var evBG: Decimal = 0
         var insulin: Decimal = 0
@@ -40,6 +42,7 @@ extension Treatments {
         var minDelta: Decimal = 0
         var expectedDelta: Decimal = 0
         var minPredBG: Decimal = 0
+        var lastLoopDate: Date?
         var isAwaitingDeterminationResult: Bool = false
         var carbRatio: Decimal = 0
 
@@ -58,6 +61,7 @@ extension Treatments {
         var wholeCobInsulin: Decimal = 0
         var iobInsulinReduction: Decimal = 0
         var wholeCalc: Decimal = 0
+        var factoredInsulin: Decimal = 0
         var insulinCalculated: Decimal = 0
         var fraction: Decimal = 0
         var basal: Decimal = 0
@@ -65,6 +69,7 @@ extension Treatments {
         var fattyMealFactor: Decimal = 0
         var useFattyMealCorrectionFactor: Bool = false
         var displayPresets: Bool = true
+        var confirmBolus: Bool = false
 
         var currentBasal: Decimal = 0
         var currentCarbRatio: Decimal = 0
@@ -156,22 +161,26 @@ extension Treatments {
         }
 
         deinit {
-            // Unregister from broadcaster
-            if let broadcaster = broadcaster {
-                broadcaster.unregister(DeterminationObserver.self, observer: self)
-                broadcaster.unregister(BolusFailureObserver.self, observer: self)
-            }
+            debug(.bolusState, "StateModel deinit called")
+        }
 
-            // Cancel Combine subscriptions
+        private var hasCleanedUp = false
+
+        func cleanupTreatmentState() {
+            guard !hasCleanedUp else { return }
+            hasCleanedUp = true
+
             unsubscribe()
-
             bolusProgressCancellable?.cancel()
 
-            debug(.bolusState, "Bolus.StateModel deinitialized")
+            broadcaster?.unregister(DeterminationObserver.self, observer: self)
+            broadcaster?.unregister(BolusFailureObserver.self, observer: self)
+
+            debug(.bolusState, "StateModel cleanup() finished")
         }
 
         private func setupBolusStateConcurrently() {
-            debug(.bolusState, "setupBolusStateConcurrently fired")
+            debug(.bolusState, "Setting up bolus state concurrently...")
             Task {
                 do {
                     try await withThrowingTaskGroup(of: Void.self) { group in
@@ -192,7 +201,7 @@ extension Treatments {
                         try await group.waitForAll()
                     }
                 } catch let error as NSError {
-                    debug(.default, "Failed to setup bolus state concurrently: \(error.localizedDescription)")
+                    debug(.default, "Failed to setup bolus state concurrently: \(error)")
                 }
             }
         }
@@ -244,6 +253,13 @@ extension Treatments {
                         self.maxBolus = getMaxBolus
                     }
                 }
+                group.addTask {
+                    let getPreferences = await self.provider.getPreferences()
+                    await MainActor.run {
+                        self.maxIOB = getPreferences.maxIOB
+                        self.maxCOB = getPreferences.maxCOB
+                    }
+                }
             }
         }
 
@@ -274,6 +290,7 @@ extension Treatments {
             sweetMeals = settings.settings.sweetMeals
             sweetMealFactor = settings.settings.sweetMealFactor
             displayPresets = settings.settings.displayPresets
+            confirmBolus = settings.settings.confirmBolus
             forecastDisplayType = settings.settings.forecastDisplayType
             lowGlucose = settingsManager.settings.low
             highGlucose = settingsManager.settings.high
@@ -358,10 +375,17 @@ extension Treatments {
 
         /// Calculate insulin recommendation
         func calculateInsulin() async -> Decimal {
+            // Safely get minPredBG on main thread
+            let localMinPredBG = await MainActor.run {
+                minPredBG
+            }
+
             let result = await bolusCalculationManager.handleBolusCalculation(
                 carbs: carbs,
                 useFattyMealCorrection: useFattyMealCorrectionFactor,
-                useSuperBolus: useSuperBolus
+                useSuperBolus: useSuperBolus,
+                lastLoopDate: apsManager.lastLoopDate,
+                minPredBG: localMinPredBG
             )
 
             // Update state properties with calculation results on main thread
@@ -373,6 +397,7 @@ extension Treatments {
                 iobInsulinReduction = result.iobInsulinReduction
                 superBolusInsulin = result.superBolusInsulin
                 wholeCalc = result.wholeCalc
+                factoredInsulin = result.factoredInsulin
                 fifteenMinInsulin = result.fifteenMinutesInsulin
             }
 
@@ -532,7 +557,7 @@ extension Treatments {
                     try await apsManager.determineBasalSync()
                 }
             } catch {
-                debug(.default, "\(DebuggingIdentifiers.failed) Failed to save carbs: \(error.localizedDescription)")
+                debug(.default, "\(DebuggingIdentifiers.failed) Failed to save carbs: \(error)")
             }
         }
 
@@ -648,7 +673,7 @@ extension Treatments.StateModel {
             } catch {
                 debug(
                     .default,
-                    "\(DebuggingIdentifiers.failed) Error setting up glucose array: \(error.localizedDescription)"
+                    "\(DebuggingIdentifiers.failed) Error setting up glucose array: \(error)"
                 )
             }
         }
@@ -673,11 +698,28 @@ extension Treatments.StateModel {
     }
 
     @MainActor private func updateGlucoseArray(with objects: [GlucoseStored]) {
+        // Store all objects for the forecast graph
         glucoseFromPersistence = objects
 
-        let lastGlucose = glucoseFromPersistence.first?.glucose ?? 0
-        let thirdLastGlucose = glucoseFromPersistence.dropFirst(2).first?.glucose ?? 0
-        let delta = Decimal(lastGlucose) - Decimal(thirdLastGlucose)
+        // Always use the most recent reading for current glucose
+        let lastGlucose = objects.first?.glucose ?? 0
+
+        // Filter for readings less than 20 minutes old
+        let twentyMinutesAgo = Date().addingTimeInterval(-20 * 60)
+        let recentObjects = objects.filter {
+            guard let date = $0.date else { return false }
+            return date > twentyMinutesAgo
+        }
+
+        // Calculate delta using newest and oldest readings within 20-minute window
+        let delta: Decimal
+        if let newestInWindow = recentObjects.first?.glucose, let oldestInWindow = recentObjects.last?.glucose {
+            // Newest is at index 0, oldest is at the last index
+            delta = Decimal(newestInWindow) - Decimal(oldestInWindow)
+        } else {
+            // Not enough data points in the window
+            delta = 0
+        }
 
         currentBG = Decimal(lastGlucose)
         deltaBG = delta
@@ -699,9 +741,9 @@ extension Treatments.StateModel {
 
             updateDeterminationsArray(with: determinationObjects)
         } catch let error as CoreDataError {
-            debug(.default, "Core Data error: \(error.localizedDescription)")
+            debug(.default, "Core Data error: \(error)")
         } catch {
-            debug(.default, "Unexpected error: \(error.localizedDescription)")
+            debug(.default, "Unexpected error: \(error)")
         }
     }
 
@@ -712,7 +754,6 @@ extension Treatments.StateModel {
 
             let determination = await determinationFetchContext.perform {
                 let determinationObject = determinationObjects.first
-                let eventualBG = determinationObject?.eventualBG?.intValue
 
                 let forecastsSet = determinationObject?.forecasts ?? []
                 let predictions = Predictions(
@@ -751,7 +792,7 @@ extension Treatments.StateModel {
         } catch {
             debug(
                 .default,
-                "\(DebuggingIdentifiers.failed) Error mapping forecasts for chart: \(error.localizedDescription)"
+                "\(DebuggingIdentifiers.failed) Error mapping forecasts for chart: \(error)"
             )
             return nil
         }
@@ -765,6 +806,8 @@ extension Treatments.StateModel {
             // setup vars for bolus calculation
             insulinRequired = (mostRecentDetermination.insulinReq ?? 0) as Decimal
             evBG = (mostRecentDetermination.eventualBG ?? 0) as Decimal
+            minPredBG = (mostRecentDetermination.minPredBGFromReason ?? 0) as Decimal
+            lastLoopDate = apsManager.lastLoopDate as Date?
             insulin = (mostRecentDetermination.insulinForManualBolus ?? 0) as Decimal
             target = (mostRecentDetermination.currentTarget ?? currentBGTarget as NSDecimalNumber) as Decimal
             isf = (mostRecentDetermination.insulinSensitivity ?? currentISF as NSDecimalNumber) as Decimal
@@ -787,11 +830,19 @@ extension Treatments.StateModel {
         debug(.bolusState, "updateForecasts fired")
         if let forecastData = forecastData {
             simulatedDetermination = forecastData
+            debugPrint("\(DebuggingIdentifiers.failed) minPredBG: \(minPredBG)")
         } else {
             simulatedDetermination = await Task { [self] in
                 debug(.bolusState, "calling simulateDetermineBasal to get forecast data")
                 return await apsManager.simulateDetermineBasal(simulatedCarbsAmount: carbs, simulatedBolusAmount: amount)
             }.value
+
+            // Update evBG and minPredBG from simulated determination
+            if let simDetermination = simulatedDetermination {
+                evBG = Decimal(simDetermination.eventualBG ?? 0)
+                minPredBG = simDetermination.minPredBGFromReason ?? 0
+                debugPrint("\(DebuggingIdentifiers.inProgress) minPredBG: \(minPredBG)")
+            }
         }
 
         predictionsForChart = simulatedDetermination?.predictions
