@@ -63,6 +63,7 @@ extension Treatments {
         var wholeCalc: Decimal = 0
         var factoredInsulin: Decimal = 0
         var insulinCalculated: Decimal = 0
+        var insulinReq: Decimal = 0
         var fraction: Decimal = 0
         var basal: Decimal = 0
         var fattyMeals: Bool = false
@@ -842,6 +843,8 @@ extension Treatments.StateModel {
                 evBG = Decimal(simDetermination.eventualBG ?? 0)
                 minPredBG = simDetermination.minPredBGFromReason ?? 0
                 debugPrint("\(DebuggingIdentifiers.inProgress) minPredBG: \(minPredBG)")
+                insulinReq = simDetermination.insulinReqFromReason ?? 0
+                debugPrint("\(DebuggingIdentifiers.inProgress) insulinReq: \(insulinReq)")
             }
         }
 

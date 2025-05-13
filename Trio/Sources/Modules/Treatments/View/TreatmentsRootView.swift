@@ -285,7 +285,7 @@ extension Treatments {
                                 Spacer()
                                 Text(
                                     formatter
-                                        .string(from: Double(state.insulinRequired) as NSNumber) ?? ""
+                                        .string(from: Double(state.insulinReq) as NSNumber) ?? ""
                                 )
                                 Text(
                                     NSLocalizedString(
@@ -294,7 +294,7 @@ extension Treatments {
                                     )
                                 ).foregroundColor(.secondary)
                             }.contentShape(Rectangle())
-                                .onTapGesture { state.amount = state.insulinRequired }
+                                .onTapGesture { state.amount = state.insulinReq }
 
                             HStack {
                                 HStack {

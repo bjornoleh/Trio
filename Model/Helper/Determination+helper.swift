@@ -28,6 +28,22 @@ extension Determination {
         }
         return nil
     }
+
+    var insulinReqFromReason: Decimal? {
+        // Match "insulinReq" followed by whitespace, then capture a decimal number
+        let pattern = #"insulinReq\s+([0-9]*\.?[0-9]+)"#
+        let regex = try? NSRegularExpression(pattern: pattern)
+
+        if let match = regex?.firstMatch(in: reason, range: NSRange(reason.startIndex..., in: reason)) {
+            if let range = Range(match.range(at: 1), in: reason) {
+                let valueString = String(reason[range])
+                return Decimal(string: valueString)
+            }
+        }
+
+        // Return nil if "insulinReq" is not present
+        return nil
+    }
 }
 
 extension OrefDetermination {
