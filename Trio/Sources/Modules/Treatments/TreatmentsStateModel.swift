@@ -835,7 +835,7 @@ extension Treatments.StateModel {
         } else {
             simulatedDetermination = await Task { [self] in
                 debug(.bolusState, "calling simulateDetermineBasal to get forecast data")
-                return await apsManager.simulateDetermineBasal(simulatedCarbsAmount: carbs, simulatedBolusAmount: amount)
+                return await apsManager.simulateDetermineBasal(simulatedCarbsAmount: carbs, simulatedBolusAmount: 0)
             }.value
 
             // Update evBG and minPredBG from simulated determination
