@@ -6,12 +6,11 @@ import Swinject
 
 extension Main {
     final class StateModel: BaseStateModel<Provider> {
+        @Injected() private var apsManager: APSManager!
         @Injected() var alertPermissionsChecker: AlertPermissionsChecker!
         @Injected() var broadcaster: Broadcaster!
-        private(set) var modal: Modal?
-        @Published var isModalPresented = false
-        @Published var isSecondaryModalPresented = false
-        @Published var secondaryModalView: AnyView? = nil
+        @Published var modal: Modal?
+        @Published var secondaryModal: SecondaryModalWrapper?
 
         @Persisted(key: "UserNotificationsManager.snoozeUntilDate") private var snoozeUntilDate: Date = .distantPast
         private var timers: [TimeInterval: Timer] = [:]
@@ -204,23 +203,35 @@ extension Main {
         /*
           Reclassification is needed for Medtronic pumps for 'Pump error:' RileyLink related messages.
           For details, see https://discord.com/channels/1020905149037813862/1338245444186279946/1343469793013141525.
-          Reclassification of Info type messages is based on APSManager.APSError enum values.
-          Currently, we only re-classify APSError.pumpError 'Pump error:' type to MessageType.error.
+          These messages are repeatedly displayed causing users to simply ignore them.
+          Reclassification of these Info type messages is based on APSManager.APSError enum values.
+          We reclassify APSError.pumpError and APSError.invalidPumpState as MessageType.info and MessageSubtype.pump.
+          This allows the user to disable these messages using using the 'Trio Notification' -> 'Always Notify Pump' setting.
           MessageType.error messagges are always displayed to the user and the user cannot disable them.
           Other APSManager.APSError remain as MessageType.info which allows users to disable them
           using the 'Trio Notification' -> 'Always Notify Algorithm' setting.
          */
+
         func reclassifyInfoNotification(_ message: inout MessageContent) {
             if message.title == "" {
                 switch message.type {
                 case .info:
-                    if let errorIndex = message.content.range(of: "error", options: .caseInsensitive) {
+                    if message.content.range(of: "error", options: .caseInsensitive) != nil || message.content
+                        .range(of: String(localized: "Error"), options: .caseInsensitive) != nil
+                    {
                         message.title = String(localized: "Error", comment: "Error title")
-                        if let errorPumpIndex = message.content.range(of: "Pump error:", options: .caseInsensitive) {
-                            message.type = .error
-                        }
                     } else {
                         message.title = String(localized: "Info", comment: "Info title")
+                    }
+                    if APSError.pumpWarningMatches(message: message.content) {
+                        message.subtype = .pump
+                        let lastLoopMinutes = Int((Date().timeIntervalSince(apsManager.lastLoopDate) - 30) / 60) + 1
+                        if lastLoopMinutes > 10 {
+                            message.type = .error
+                        }
+                    } else if APSError.pumpErrorMatches(message: message.content) {
+                        message.subtype = .pump
+                        message.type = .error
                     }
                 case .warning:
                     message.title = String(localized: "Warning", comment: "Warning title")
@@ -237,14 +248,11 @@ extension Main {
                 .map { $0?.modal(resolver: self.resolver!) }
                 .removeDuplicates { $0?.id == $1?.id }
                 .receive(on: DispatchQueue.main)
-                .sink { modal in
-                    self.modal = modal
-                    self.isModalPresented = modal != nil
-                }
-                .store(in: &lifetime)
+                .assign(to: &$modal)
 
-            $isModalPresented
-                .filter { !$0 }
+            $modal
+                .removeDuplicates { $0?.id == $1?.id }
+                .filter { $0 == nil }
                 .sink { _ in
                     self.router.mainModalScreen.send(nil)
                 }
@@ -264,14 +272,13 @@ extension Main {
             router.mainSecondaryModalView
                 .receive(on: DispatchQueue.main)
                 .sink { view in
-                    self.secondaryModalView = view
-                    self.isSecondaryModalPresented = view != nil
+                    self.secondaryModal = view.map { SecondaryModalWrapper(view: $0) }
                 }
                 .store(in: &lifetime)
 
-            $isSecondaryModalPresented
-                .removeDuplicates()
-                .filter { !$0 }
+            $secondaryModal
+                .removeDuplicates { $0?.id == $1?.id }
+                .filter { $0 == nil }
                 .sink { _ in
                     self.router.mainSecondaryModalView.send(nil)
                 }

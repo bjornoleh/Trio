@@ -460,32 +460,41 @@ extension Home {
 
                 Spacer()
 
-                HStack {
-                    if state.pumpSuspended {
-                        Text("Pump suspended")
-                            .font(.callout).fontWeight(.bold).fontDesign(.rounded)
-                            .foregroundColor(.loopGray)
-                    } else if let tempBasalString = tempBasalString {
-                        Image(systemName: "drop.circle")
-                            .font(.callout)
-                            .foregroundColor(.insulinTintColor)
-                        if tempBasalString.count > 5 {
-                            Text(tempBasalString)
+                if state.maxIOB == 0.0 {
+                    HStack {
+                        Image(systemName: "exclamationmark.circle.fill")
+                        Text("MaxIOB: 0 U")
+                    }.bold()
+                        .foregroundStyle(Color.red)
+                        .font(.callout)
+                } else {
+                    HStack {
+                        if state.pumpSuspended {
+                            Text("Pump suspended")
                                 .font(.callout).fontWeight(.bold).fontDesign(.rounded)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.85)
-                                .truncationMode(.tail)
-                                .allowsTightening(true)
+                                .foregroundColor(.loopGray)
+                        } else if let tempBasalString = tempBasalString {
+                            Image(systemName: "drop.circle")
+                                .font(.callout)
+                                .foregroundColor(.insulinTintColor)
+                            if tempBasalString.count > 5 {
+                                Text(tempBasalString)
+                                    .font(.callout).fontWeight(.bold).fontDesign(.rounded)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.85)
+                                    .truncationMode(.tail)
+                                    .allowsTightening(true)
+                            } else {
+                                // Short strings can just display normally
+                                Text(tempBasalString).font(.callout).fontWeight(.bold).fontDesign(.rounded)
+                            }
                         } else {
-                            // Short strings can just display normally
-                            Text(tempBasalString).font(.callout).fontWeight(.bold).fontDesign(.rounded)
+                            Image(systemName: "drop.circle")
+                                .font(.callout)
+                                .foregroundColor(.insulinTintColor)
+                            Text("No Data")
+                                .font(.callout).fontWeight(.bold).fontDesign(.rounded)
                         }
-                    } else {
-                        Image(systemName: "drop.circle")
-                            .font(.callout)
-                            .foregroundColor(.insulinTintColor)
-                        Text("No Data")
-                            .font(.callout).fontWeight(.bold).fontDesign(.rounded)
                     }
                 }
             }.padding(.horizontal)
@@ -835,20 +844,26 @@ extension Home {
         @ViewBuilder func mainViewElements(_ geo: GeometryProxy) -> some View {
             VStack(spacing: 0) {
                 ZStack {
-                    /// glucose bobble
-                    glucoseView
+                    if let apsManager = state.apsManager, let bluetoothManager = apsManager.bluetoothManager,
+                       bluetoothManager.bluetoothAuthorization != .authorized
+                    {
+                        BluetoothRequiredView()
+                    } else {
+                        /// right panel with loop status and evBG
+                        HStack {
+                            Spacer()
+                            rightHeaderPanel(geo)
+                        }.padding(.trailing, 20)
 
-                    /// right panel with loop status and evBG
-                    HStack {
-                        Spacer()
-                        rightHeaderPanel(geo)
-                    }.padding(.trailing, 20)
+                        /// glucose bobble
+                        glucoseView
 
-                    /// left panel with pump related info
-                    HStack {
-                        pumpView
-                        Spacer()
-                    }.padding(.leading, 20)
+                        /// left panel with pump related info
+                        HStack {
+                            pumpView
+                            Spacer()
+                        }.padding(.leading, 20)
+                    }
                 }
                 .padding(.top, 10)
                 .safeAreaInset(edge: .top, spacing: 0) {
@@ -936,7 +951,7 @@ extension Home {
             .confirmationDialog("Pump Model", isPresented: $showPumpSelection) {
                 Button("Medtronic") { state.addPump(.minimed) }
                 Button("Omnipod Eros") { state.addPump(.omnipod) }
-                Button("Omnipod Dash") { state.addPump(.omnipodBLE) }
+                Button("Omnipod DASH") { state.addPump(.omnipodBLE) }
                 Button("Dana(RS/-i)") { state.addPump(.dana) }
                 Button("Pump Simulator") { state.addPump(.simulator) }
             } message: { Text("Select Pump Model") }
@@ -1047,13 +1062,13 @@ extension Home {
 
                 Button(
                     action: {
-                        state.showModal(for: .bolus) },
+                        state.showModal(for: .treatmentView) },
                     label: {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 40))
                             .foregroundStyle(Color.tabBar)
-                            .padding(.bottom, 1)
-                            .padding(.horizontal, 22.5)
+                            .padding(.vertical, 2)
+                            .padding(.horizontal, 24)
                     }
                 )
             }.ignoresSafeArea(.keyboard, edges: .bottom).blur(radius: state.waitForSuggestion ? 8 : 0)

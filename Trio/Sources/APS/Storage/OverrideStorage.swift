@@ -232,7 +232,7 @@ final class BaseOverrideStorage: @preconcurrency OverrideStorage, Injectable {
                     "OverrideStorage: \(#function) \(DebuggingIdentifiers.succeeded) deleted override from core data"
                 )
             } catch {
-                debugPrint("\(DebuggingIdentifiers.failed) Error deleting override: \(error.localizedDescription)")
+                debugPrint("\(DebuggingIdentifiers.failed) Error deleting override: \(error)")
             }
         }
     }
@@ -394,13 +394,12 @@ final class BaseOverrideStorage: @preconcurrency OverrideStorage, Injectable {
         )
 
         return try await context.perform {
-            guard let fetchedResults = results as? [OverrideStored],
-                  let latestOverride = fetchedResults.first
+            guard let fetchedResults = results as? [OverrideStored]
             else {
                 throw CoreDataError.fetchError(function: #function, file: #file)
             }
 
-            return latestOverride.objectID
+            return fetchedResults.first?.objectID
         }
     }
 }

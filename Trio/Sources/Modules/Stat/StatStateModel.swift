@@ -11,6 +11,7 @@ extension Stat {
         var lowLimit: Decimal = 70
         var eA1cDisplayUnit: EstimatedA1cDisplayUnit = .percent
         var units: GlucoseUnits = .mgdL
+        var timeInRangeType: TimeInRangeType = .timeInTightRange
         var useFPUconversion: Bool = false
         var glucoseFromPersistence: [GlucoseStored] = []
         var loopStatRecords: [LoopStatRecord] = []
@@ -85,6 +86,7 @@ extension Stat {
             units = settingsManager.settings.units
             eA1cDisplayUnit = settingsManager.settings.eA1cDisplayUnit
             useFPUconversion = settingsManager.settings.useFPUconversion
+            timeInRangeType = settingsManager.settings.timeInRangeType
         }
 
         func setupGlucoseArray(for interval: StatsTimeIntervalWithToday) {
@@ -133,7 +135,7 @@ extension Stat {
                     return fetchedResults.compactMap { $0["objectID"] as? NSManagedObjectID }
                 }
             } catch {
-                debug(.default, "\(DebuggingIdentifiers.failed) Error fetching glucose for stats: \(error.localizedDescription)")
+                debug(.default, "\(DebuggingIdentifiers.failed) Error fetching glucose for stats: \(error)")
                 return []
             }
         }
@@ -146,7 +148,7 @@ extension Stat {
                 glucoseFromPersistence = glucoseObjects
             } catch {
                 debugPrint(
-                    "Home State: \(#function) \(DebuggingIdentifiers.failed) error while updating the glucose array: \(error.localizedDescription)"
+                    "Home State: \(#function) \(DebuggingIdentifiers.failed) error while updating the glucose array: \(error)"
                 )
             }
         }

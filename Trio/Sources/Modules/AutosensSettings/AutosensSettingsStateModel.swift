@@ -11,7 +11,7 @@ extension AutosensSettings {
         var units: GlucoseUnits = .mgdL
 
         private(set) var autosensISF: Decimal?
-        private(set) var autosensRatio: Decimal = 0
+        private(set) var autosensRatio: Decimal = 1
         @Published var determinationsFromPersistence: [OrefDetermination] = []
 
         let viewContext = CoreDataStack.shared.persistentContainer.viewContext
@@ -49,7 +49,7 @@ extension AutosensSettings {
                 } catch {
                     debug(
                         .default,
-                        "\(DebuggingIdentifiers.failed) Error fetching determination IDs: \(error.localizedDescription)"
+                        "\(DebuggingIdentifiers.failed) Error fetching determination IDs: \(error)"
                     )
                 }
             }
@@ -64,7 +64,7 @@ extension AutosensSettings {
 
             } catch {
                 debugPrint(
-                    "Home State: \(#function) \(DebuggingIdentifiers.failed) error while updating the glucose array: \(error.localizedDescription)"
+                    "Home State: \(#function) \(DebuggingIdentifiers.failed) error while updating the glucose array: \(error)"
                 )
             }
         }

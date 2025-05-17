@@ -419,6 +419,85 @@ extension UserInterfaceSettings {
                     }
                 ).listRowBackground(Color.chart)
 
+                Section {
+                    VStack(alignment: .leading) {
+                        Picker(
+                            selection: $state.timeInRangeType,
+                            label: Text("Time in Range Type").multilineTextAlignment(.leading)
+                        ) {
+                            ForEach(TimeInRangeType.allCases) { selection in
+                                Text(selection.displayName).tag(selection)
+                            }
+                        }.padding(.top)
+
+                        HStack(alignment: .center) {
+                            Text(
+                                "Choose type of time in range to be used for Trio's statistics."
+                            )
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                            .lineLimit(nil)
+                            Spacer()
+                            Button(
+                                action: {
+                                    hintLabel = String(localized: "Time in Range Type")
+                                    selectedVerboseHint =
+                                        AnyView(
+                                            VStack(
+                                                alignment: .leading,
+                                                spacing: 10
+                                            ) {
+                                                Text(
+                                                    "Choose which type of time in range Trio should adopt for all its statistical charts and displays:"
+                                                )
+                                                VStack(
+                                                    alignment: .leading,
+                                                    spacing: 5
+                                                ) {
+                                                    Text(
+                                                        "Time in Tight Range (TITR):"
+                                                    )
+                                                    .bold()
+                                                    let titrBottomThreshold =
+                                                        "\(state.units == .mgdL ? Decimal(70) : 70.asMmolL)"
+                                                    let titrTopThreshold =
+                                                        "\(state.units == .mgdL ? Decimal(140) : 140.asMmolL)"
+                                                    Text(String(
+                                                        localized: "Uses the fairly established Time in Tight Range definition, which is defined as time between \(titrBottomThreshold) and \(titrTopThreshold)  \(state.units.rawValue).",
+                                                        comment: "Time in Tight Range (TITR) verbose hint description"
+                                                    ))
+                                                }
+                                                VStack(
+                                                    alignment: .leading,
+                                                    spacing: 5
+                                                ) {
+                                                    Text(
+                                                        "Time in Normoglycemia (TING):"
+                                                    )
+                                                    .bold()
+                                                    let tingBottomThreshold =
+                                                        "\(state.units == .mgdL ? Decimal(63) : 63.asMmolL)"
+                                                    let tingTopThreshold =
+                                                        "\(state.units == .mgdL ? Decimal(140) : 140.asMmolL)"
+                                                    Text(String(
+                                                        localized: "Uses the very new – first discussed at ATTD 2025 in Amsterdam, NL – Time in Normoglycemia definition, which adopts its range as all values between the normoglycemic minimum threshold (\(tingBottomThreshold) \(state.units.rawValue)) and \(tingTopThreshold) \(state.units.rawValue).",
+                                                        comment: "Time in Normoglycemia (TING) verbose hint description"
+                                                    ))
+                                                }
+                                            }
+                                        )
+                                    shouldDisplayHint.toggle()
+                                },
+                                label: {
+                                    HStack {
+                                        Image(systemName: "questionmark.circle")
+                                    }
+                                }
+                            ).buttonStyle(BorderlessButtonStyle())
+                        }.padding(.top)
+                    }.padding(.bottom)
+                }.listRowBackground(Color.chart)
+
                 SettingInputSection(
                     decimalValue: $state.carbsRequiredThreshold,
                     booleanValue: $state.showCarbsRequiredBadge,

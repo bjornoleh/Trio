@@ -5,6 +5,7 @@ import HealthKit
 import LoopKit
 import LoopKitUI
 import Swinject
+import TidepoolServiceKit
 
 protocol TidepoolManager {
     func addTidepoolService(service: Service)
@@ -96,12 +97,12 @@ final class BaseTidepoolManager: TidepoolManager, Injectable {
 
     /// Loads the Tidepool service from raw stored data
     private func tidepoolServiceFromRaw(_ rawValue: [String: Any]) -> RemoteDataService? {
-        guard let rawState = rawValue["state"] as? Service.RawStateValue,
-              let serviceType = pluginManager.getServiceTypeByIdentifier("TidepoolService")
+        let serviceType = TidepoolService.self
+        guard let rawState = rawValue["state"] as? Service.RawStateValue
         else { return nil }
 
         if let service = serviceType.init(rawState: rawState) {
-            return service as? RemoteDataService
+            return service as RemoteDataService
         }
         return nil
     }
@@ -190,7 +191,7 @@ extension BaseTidepoolManager {
         do {
             try uploadCarbs(await carbsStorage.getCarbsNotYetUploadedToTidepool())
         } catch {
-            debug(.service, "\(DebuggingIdentifiers.failed) Failed to upload carbs with error: \(error.localizedDescription)")
+            debug(.service, "\(DebuggingIdentifiers.failed) Failed to upload carbs with error: \(error)")
         }
     }
 
@@ -282,7 +283,7 @@ extension BaseTidepoolManager {
             let events = try await pumpHistoryStorage.getPumpHistoryNotYetUploadedToTidepool()
             await uploadDose(events)
         } catch {
-            debug(.service, "Error fetching pump history: \(error.localizedDescription)")
+            debug(.service, "Error fetching pump history: \(error)")
         }
     }
 
@@ -400,7 +401,7 @@ extension BaseTidepoolManager {
                 }
             }
         } catch {
-            debug(.service, "Error fetching temp basal entries: \(error.localizedDescription)")
+            debug(.service, "Error fetching temp basal entries: \(error)")
         }
     }
 
@@ -595,7 +596,7 @@ extension BaseTidepoolManager {
             let manualGlucose = try await glucoseStorage.getManualGlucoseNotYetUploadedToTidepool()
             uploadGlucose(manualGlucose)
         } catch {
-            debug(.service, "Error fetching glucose data: \(error.localizedDescription)")
+            debug(.service, "Error fetching glucose data: \(error)")
         }
     }
 

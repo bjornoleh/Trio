@@ -499,7 +499,7 @@ extension BaseDeviceDataManager: PumpManagerDelegate {
 
     func pumpManager(_: PumpManager, didError error: PumpManagerError) {
         dispatchPrecondition(condition: .onQueue(processQueue))
-        debug(.deviceManager, "error: \(error.localizedDescription), reason: \(String(describing: error.failureReason))")
+        debug(.deviceManager, "error: \(error), reason: \(String(describing: error.failureReason))")
         errorSubject.send(error)
     }
 
@@ -520,6 +520,7 @@ extension BaseDeviceDataManager: PumpManagerDelegate {
                     guard let type = $0.type, type == .tempBasal else { return true }
                     return $0.dose?.unitsPerHour ?? 0 <= Double(settingsManager.pumpSettings.maxBasal)
                 }
+                debug(.deviceManager, "Storing \(events.count) new pump events: \(events)")
                 try await pumpHistoryStorage.storePumpEvents(events)
                 lastEventDate = events.last?.date
                 completion(nil)
@@ -674,7 +675,7 @@ extension BaseDeviceDataManager: AlertObserver {
             self.pumpManager?.acknowledgeAlert(alertIdentifier: alert.alertIdentifier) { error in
                 if let error = error {
                     self.alertHistoryStorage.ackAlert(alertIssueDate, error.localizedDescription)
-                    debug(.deviceManager, "acknowledge not succeeded with error \(error.localizedDescription)")
+                    debug(.deviceManager, "acknowledge not succeeded with error \(error)")
                 } else {
                     self.alertHistoryStorage.ackAlert(alertIssueDate, nil)
                 }
