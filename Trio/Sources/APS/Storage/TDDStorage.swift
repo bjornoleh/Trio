@@ -637,10 +637,10 @@ final class BaseTDDStorage: TDDStorage, Injectable {
         }
     }
 
-    /// Checks if there is enough Total Daily Dose (TDD) data collected over the past 7 days.
+    /// Checks if there is enough Total Daily Dose (TDD) data collected over the past 7 days. ## Edited to 1 day
     ///
     /// This function performs a count fetch for TDDStored records in Core Data where:
-    /// - The record's date is within the last 7 days.
+    /// - The record's date is within the last 7 days. ## Edited to 1 day
     /// - The total value is greater than 0.
     ///
     /// It then checks if at least 85% of the expected data points are present,
@@ -653,12 +653,12 @@ final class BaseTDDStorage: TDDStorage, Injectable {
             let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "TDDStored")
             fetchRequest.predicate = NSPredicate(
                 format: "date > %@ AND total > 0",
-                Date().addingTimeInterval(-86400 * 7) as NSDate
+                Date().addingTimeInterval(-86400 * 1) as NSDate
             )
             fetchRequest.resultType = .countResultType
 
             let count = try self.privateContext.count(for: fetchRequest)
-            let threshold = Int(Double(7 * 288) * 0.85)
+            let threshold = Int(Double(1 * 288) * 0.85)
             return count >= threshold
         }
     }
