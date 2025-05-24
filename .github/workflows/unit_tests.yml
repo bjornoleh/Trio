@@ -24,18 +24,25 @@ jobs:
       - name: Install xcpretty
         run: gem install xcpretty
 
-      # iOS Unit Tests
-      - name: Run iOS Unit Tests
-        run: |
-          set -o pipefail && \
-          xcodebuild test \
-            -scheme "Trio Tests" \
-            -sdk iphonesimulator \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
-            -only-testing:TrioTests \
-            -enableCodeCoverage YES \
-            | xcpretty
-            
+      - name: Build for testing
+      run: |
+        xcodebuild build-for-testing \
+          -scheme "Trio Tests" \
+          -sdk iphonesimulator \
+          -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
+          -skip-package-plugin-validation \
+          -only-testing:TrioTests \
+          | xcpretty
+          
+      - name: Run tests
+      run: |
+        xcodebuild test-without-building \
+          -scheme "Trio Tests" \
+          -sdk iphonesimulator \
+          -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
+          -only-testing:TrioTests \
+          | xcpretty
+          
       # watchOS Unit Tests
       - name: Run watchOS Unit Tests
         run: |
