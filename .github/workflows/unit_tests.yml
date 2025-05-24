@@ -30,7 +30,6 @@ jobs:
             -scheme "Trio Tests" \
             -sdk iphonesimulator \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
-            -skip-package-plugin-validation \
             | xcpretty
             
       - name: Run tests
