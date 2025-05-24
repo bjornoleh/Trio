@@ -1,3 +1,4 @@
+#if os(watchOS)
 import SwiftUI
 import WidgetKit
 
@@ -103,3 +104,4 @@ extension View {
         }
     }
 }
+#endif 
