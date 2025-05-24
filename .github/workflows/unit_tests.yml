@@ -28,7 +28,7 @@ jobs:
           xcodebuild test \
             -scheme Trio \
             -sdk iphonesimulator \
-            -destination 'platform=iOS Simulator,name=iPhone 15,OS=17.4' \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
             -enableCodeCoverage YES \
             | tee xcodebuild.log
         continue-on-error: true
