@@ -1,10 +1,9 @@
-# .github/workflows/swift-tests.yml
 name: Swift Tests
 
 on:
-  workflow_dispatch: # TODO: remove this line after having succesfully tested the workflow
+  workflow_dispatch: # TODO: remove this after testing
   pull_request:
-    branches: [unit_tests_on_PR] # `main` or 'master' or your default branch
+    branches: [unit_tests_on_PR]
   push:
     branches: [unit_tests_on_PR]
 
@@ -15,14 +14,18 @@ jobs:
 
     steps:
       - name: Select Xcode version
-        run: "sudo xcode-select --switch /Applications/Xcode_16.3.app/Contents/Developer" # adjust to your target version
+        run: sudo xcode-select -s /Applications/Xcode_16.3.app/Contents/Developer
 
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Build and test with logs
+      - name: Install xcpretty
+        run: gem install xcpretty
+
+      # iOS Unit Tests
+      - name: Run iOS Unit Tests
         run: |
           set -o pipefail && \
           xcodebuild test \
@@ -30,12 +33,23 @@ jobs:
             -sdk iphonesimulator \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
             -enableCodeCoverage YES \
-            | tee xcodebuild.log
-        continue-on-error: true
-      
-      - name: Upload xcodebuild log
-        if: ${{ always() }}
+            | xcpretty --test --color --report html --output iOSTests.html
+
+      # watchOS Unit Tests
+      - name: Run watchOS Unit Tests
+        run: |
+          set -o pipefail && \
+          xcodebuild test \
+            -scheme "Trio Watch AppTests" \
+            -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm),OS=10.4' \
+            | xcpretty --test --color --report html --output WatchOSTests.html
+
+      # Upload test logs and reports
+      - name: Upload test artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: xcodebuild.log
-          path: xcodebuild.log
+          name: xcode-test-artifacts
+          path: |
+            iOSTests.html
+            WatchOSTests.html
