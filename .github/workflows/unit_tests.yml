@@ -22,17 +22,20 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Build and test
+      - name: Build and test with logs
         run: |
+          set -o pipefail && \
           xcodebuild test \
             -scheme Trio \
             -sdk iphonesimulator \
             -destination 'platform=iOS Simulator,name=iPhone 15,OS=17.4' \
-            -enableCodeCoverage YES
-
-      - name: Upload test results (optional)
+            -enableCodeCoverage YES \
+            | tee xcodebuild.log
+        continue-on-error: true
+      
+      - name: Upload xcodebuild log
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: xcode-test-logs
-          path: ~/Library/Logs/DiagnosticReports # or wherever your logs are generated
+          name: xcodebuild.log
+          path: xcodebuild.log
