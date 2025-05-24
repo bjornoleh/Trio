@@ -32,9 +32,10 @@ jobs:
             -scheme "Trio Tests" \
             -sdk iphonesimulator \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
+            -only-testing:TrioTests \
             -enableCodeCoverage YES \
-            | xcpretty --test --color --report html --output iOSTests.html
-
+            | xcpretty
+            
       # watchOS Unit Tests
       - name: Run watchOS Unit Tests
         run: |
