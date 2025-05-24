@@ -14,14 +14,14 @@ jobs:
     runs-on: macos-latest
 
     steps:
+      - name: Select Xcode version
+        run: "sudo xcode-select --switch /Applications/Xcode_16.3.app/Contents/Developer" # adjust to your target version
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      - name: Select Xcode version
-        run: "sudo xcode-select --switch /Applications/Xcode_16.3.app/Contents/Developer" # adjust to your target version
-
+          
       - name: Build and test
         run: |
           xcodebuild test \
