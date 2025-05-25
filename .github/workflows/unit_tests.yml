@@ -25,7 +25,7 @@ jobs:
       - name: Install xcpretty
         run: gem install xcpretty
       
-      - name: Build for testing
+      - name: Build Trio for testing
         run: |
           set -o pipefail && \
           xcodebuild build-for-testing \
@@ -46,7 +46,17 @@ jobs:
       
         # Mark that failure of this step shouldn't block following ones
         continue-on-error: true
-      
+
+      - name: Build Trio Watch App for testing
+        run: |
+          set -o pipefail && \
+          xcodebuild build-for-testing \
+           -workspace Trio.xcworkspace \
+            -scheme "Trio Watch AppTests" \
+            -destination 'platform=watchOS Simulator,name=Apple Watch Series 10 (46mm),OS=11.4' \
+            | xcpretty
+        continue-on-error: true
+
       - name: Run Trio Watch App unit tests
         if: always()
         run: |
