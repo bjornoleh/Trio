@@ -32,6 +32,7 @@ jobs:
             -scheme "Trio" \
             -sdk iphonesimulator \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
+            DEVELOPMENT_TEAM=${{ secrets.TEAMID }} \
             | xcpretty
             
       - name: Run tests
@@ -40,6 +41,7 @@ jobs:
             -scheme "Trio" \
             -sdk iphonesimulator \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
+            DEVELOPMENT_TEAM=${{ secrets.TEAMID }} \
             -only-testing:TrioTests \
             | xcpretty
             
