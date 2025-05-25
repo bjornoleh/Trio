@@ -24,7 +24,7 @@ jobs:
 
       - name: Install xcpretty
         run: gem install xcpretty
-
+      
       - name: Build for testing
         run: |
           set -o pipefail && \
@@ -36,30 +36,35 @@ jobs:
       
       - name: Run Trio unit tests
         run: |
+          mkdir -p test-results
           set -o pipefail && \
           xcodebuild test-without-building \
             -workspace Trio.xcworkspace \
             -scheme "Trio Tests" \
-            -sdk iphonesimulator \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
-            | xcpretty --test --color --report html --output WatchOSTests.html
-            
+            | xcpretty --test --report junit --output test-results/TrioTests.xml
+      
       - name: Run Trio Watch App unit tests
         run: |
+          mkdir -p test-results
           set -o pipefail && \
           xcodebuild test-without-building \
-          -workspace Trio.xcworkspace \
-          -scheme "Trio Watch AppTests" \
-          -sdk iphonesimulator \
-          -destination 'platform=watchOS Simulator,name=Apple Watch Series 10 (46mm),OS=11.4' \
-          | xcpretty --test --color --report html --output WatchOSTests.html
-
-      # Upload test logs and reports
-      - name: Upload test artifacts
-        if: always()
+            -workspace Trio.xcworkspace \
+            -scheme "Trio Watch AppTests" \
+            -destination 'platform=watchOS Simulator,name=Apple Watch Series 10 (46mm),OS=11.4' \
+            | xcpretty --test --report junit --output test-results/WatchAppTests.xml
+      
+      - name: Upload test results (JUnit format)
         uses: actions/upload-artifact@v4
         with:
-          name: xcode-test-artifacts
-          path: |
-            iOSTests.html
-            WatchOSTests.html
+          name: junit-test-results
+          path: test-results/
+      
+      - name: Publish Test Report
+        uses: dorny/test-reporter@v1
+        if: always() # run this step even if tests fail
+        with:
+          name: Xcode Tests
+          path: test-results/*.xml
+          reporter: java-junit
+        
