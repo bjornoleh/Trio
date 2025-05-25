@@ -1,0 +1,71 @@
+name: zzz [DO NOT RUN] Automated unit tests
+
+on:
+  workflow_dispatch: # TODO: remove this after testing
+  pull_request:
+    branches: [unit_tests_workflow]
+  push:
+    branches: [unit_tests_workflow]
+
+jobs:
+  test:
+    name: Run Unit Tests
+    runs-on: macos-15
+    #if: github.repository_owner == 'nightscout' TODO: include this if-statement after testing
+
+    steps:
+      - name: Select Xcode version
+        run: sudo xcode-select -s /Applications/Xcode_16.3.app/Contents/Developer
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install xcpretty
+        run: gem install xcpretty
+
+      - name: Build for testing
+        run: set -o pipefail && xcodebuild build-for-testing -workspace Trio.xcworkspace -scheme "Trio Tests" -destination 'platform=iOS Simulator,name=iPhone 16' | xcpretty
+
+      - name: Run Trio Tests
+        run: set -o pipefail && xcodebuild test-without-building -workspace Trio.xcworkspace -scheme "Trio Tests" -destination 'platform=iOS Simulator,name=iPhone 16' | xcpretty
+
+      - name: Build for testing
+        run: |
+          set -o pipefail && \
+          xcodebuild build-for-testing \
+            -workspace Trio.xcworkspace \
+            -scheme "Trio Tests" \
+            -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
+            | xcpretty
+      
+      - name: Run Trio Tests
+        run: |
+          set -o pipefail && \
+          xcodebuild test-without-building \
+            -workspace Trio.xcworkspace \
+            -scheme "Trio Tests" \
+            -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
+            | xcpretty
+            
+      # watchOS Unit Tests
+      #- name: Run watchOS Unit Tests
+      #  run: |
+      #    set -o pipefail && \
+      #    xcodebuild test \
+      #      -scheme "Trio Watch AppTests" \
+      #      -destination 'platform=watchOS Simulator,name=Apple Watch Series 10 (46mm),OS=11.4' \
+      #      | xcpretty --test --color --report html --output WatchOSTests.html
+
+      # Upload test logs and reports
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcode-test-artifacts
+          path: |
+            iOSTests.html
+            WatchOSTests.html
