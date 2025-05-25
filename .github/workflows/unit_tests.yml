@@ -28,22 +28,28 @@ jobs:
 
       - name: Build for testing
         run: |
-          xcodebuild build-for-testing \
+          set -o pipefail && \
+          time xcodebuild \
+            -workspace Trio.xcworkspace \
             -scheme "Trio" \
             -sdk iphonesimulator \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
             DEVELOPMENT_TEAM=${{ secrets.TEAMID }} \
-            | xcpretty
+            build-for-testing \
+          | xcpretty
+      
             
       - name: Run tests
         run: |
-          xcodebuild test-without-building \
+          set -o pipefail && \
+          time xcodebuild \
+            -workspace Trio.xcworkspace \
             -scheme "Trio" \
             -sdk iphonesimulator \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
             DEVELOPMENT_TEAM=${{ secrets.TEAMID }} \
-            -only-testing:TrioTests \
-            | xcpretty
+            test \
+          | xcpretty
             
       # watchOS Unit Tests
       #- name: Run watchOS Unit Tests
