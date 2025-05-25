@@ -44,7 +44,11 @@ jobs:
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
             | xcpretty --test --report junit --output test-results/TrioTests.xml
       
+        # Mark that failure of this step shouldn't block following ones
+        continue-on-error: true
+      
       - name: Run Trio Watch App unit tests
+        if: always()
         run: |
           mkdir -p test-results
           set -o pipefail && \
@@ -54,15 +58,18 @@ jobs:
             -destination 'platform=watchOS Simulator,name=Apple Watch Series 10 (46mm),OS=11.4' \
             | xcpretty --test --report junit --output test-results/WatchAppTests.xml
       
-      - name: Upload test results (JUnit format)
+        continue-on-error: true
+      
+      - name: Upload test results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: junit-test-results
           path: test-results/
       
       - name: Publish Test Report
+        if: always()
         uses: dorny/test-reporter@v1
-        if: always() # run this step even if tests fail
         with:
           name: Xcode Tests
           path: test-results/*.xml
