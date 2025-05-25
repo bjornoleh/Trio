@@ -26,30 +26,25 @@ jobs:
       - name: Install xcpretty
         run: gem install xcpretty
 
-      - name: Build
+      # iOS Build and Test
+      - name: Build iOS targets for testing
         run: |
           set -o pipefail && \
-          time xcodebuild \
-            -workspace Trio.xcworkspace \
-            -scheme "Trio" \
+          xcodebuild build-for-testing \
+            -scheme "Trio Tests" \
             -sdk iphonesimulator \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
-            DEVELOPMENT_TEAM=${{ secrets.TEAMID }} \
-            build \
-          | xcpretty
-      
-            
-      - name: Run tests
+            | xcpretty
+
+      - name: Run iOS Unit Tests
         run: |
           set -o pipefail && \
-          time xcodebuild \
-            -workspace Trio.xcworkspace \
-            -scheme "Trio" \
+          xcodebuild test-without-building \
+            -scheme "Trio Tests" \
             -sdk iphonesimulator \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
-            DEVELOPMENT_TEAM=${{ secrets.TEAMID }} \
-            test \
-          | xcpretty
+            -only-testing:TrioTests \
+            | xcpretty --test --color --report html --output iOSTests.html
             
       # watchOS Unit Tests
       #- name: Run watchOS Unit Tests
