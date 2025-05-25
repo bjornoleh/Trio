@@ -26,7 +26,7 @@ jobs:
       - name: Install xcpretty
         run: gem install xcpretty
 
-      - name: Build for testing
+      - name: Build
         run: |
           set -o pipefail && \
           time xcodebuild \
@@ -35,7 +35,7 @@ jobs:
             -sdk iphonesimulator \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
             DEVELOPMENT_TEAM=${{ secrets.TEAMID }} \
-            build-for-testing \
+            build \
           | xcpretty
       
             
