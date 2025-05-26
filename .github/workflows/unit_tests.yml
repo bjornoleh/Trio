@@ -1,0 +1,92 @@
+name: Run Unit Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [trio_tests_ci3]
+  pull_request:
+    branches: [trio_tests_ci3]
+
+jobs:
+  test:
+    name: Run Unit Tests
+    runs-on: macos-15
+
+    steps:
+      - name: Select Xcode version
+        run: sudo xcode-select -s /Applications/Xcode_16.3.app/Contents/Developer
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Create build directories
+        run: mkdir -p test-results build
+
+      - name: Build for testing
+        run: |
+          set -o pipefail && \
+          xcodebuild build-for-testing \
+            -workspace Trio.xcworkspace \
+            -scheme "Trio Tests" \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4'
+
+      - name: Run unit tests and save results
+        run: |
+          set -o pipefail && \
+          xcodebuild test-without-building \
+            -workspace Trio.xcworkspace \
+            -scheme "Trio Tests" \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
+            -resultBundlePath build/TrioTests.xcresult
+        continue-on-error: true
+
+      - name: Annotate GitHub with test failures
+        if: always()
+        run: |
+          raw_json=$(xcrun xcresulttool get --path build/TrioTests.xcresult --format json)
+          echo "$raw_json" | jq -r '
+            .actions._values[]?.actionResult.testsRef.id as $testsID |
+            .actions._values[] |
+            select(.actionResult.testsRef.id == $testsID) |
+            .actionResult.testsRef.id as $refID |
+            $refID
+          ' | while read test_ref; do
+            failure_output=$(xcrun xcresulttool get --path build/TrioTests.xcresult --id "$test_ref" --format json)
+            echo "$failure_output" | jq -r '
+              .summaries._values[]? |
+              .tests._values[]? |
+              recurse(.subtests[]?) |
+              select(.testStatus == "Failure") |
+              "::error file=\(.fileName // "Unknown"),line=\(.lineNumber // 1)::Test Failed: \(.identifier // .name)"
+            '
+          done
+
+      - name: Convert xcresult to JUnit XML
+        run: |
+          brew install TAPEvents/tap/xcresultparser
+          xcresultparser build/TrioTests.xcresult --output-format junit > test-results/TrioTests.xml
+        continue-on-error: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-test-results
+          path: test-results/
+
+      - name: Upload xcresult bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: raw-xcresult
+          path: build/TrioTests.xcresult/
+
+      - name: Publish Test Report
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Xcode Tests
+          path: test-results/*.xml
+          reporter: java-junit
