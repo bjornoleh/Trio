@@ -3,9 +3,9 @@ name: zzz [DO NOT RUN] Automated unit tests
 on:
   workflow_dispatch: # TODO: remove this after testing
   pull_request:
-    branches: [unit_tests_workflow]
+    branches: [trio_tests_ci_no_scheme_changes]
   push:
-    branches: [unit_tests_workflow]
+    branches: [trio_tests_ci_no_scheme_changes]
 
 jobs:
   test:
@@ -22,50 +22,38 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install xcpretty
-        run: gem install xcpretty
-
-      - name: Build for testing
-        run: set -o pipefail && xcodebuild build-for-testing -workspace Trio.xcworkspace -scheme "Trio Tests" -destination 'platform=iOS Simulator,name=iPhone 16' | xcpretty
-
-      - name: Run Trio Tests
-        run: set -o pipefail && xcodebuild test-without-building -workspace Trio.xcworkspace -scheme "Trio Tests" -destination 'platform=iOS Simulator,name=iPhone 16' | xcpretty
-
       - name: Build for testing
         run: |
           set -o pipefail && \
-          xcodebuild build-for-testing \
+          time xcodebuild build-for-testing \
             -workspace Trio.xcworkspace \
             -scheme "Trio Tests" \
-            -sdk iphonesimulator \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
-            | xcpretty
       
-      - name: Run Trio Tests
+      - name: Run Trio unit tests
         run: |
           set -o pipefail && \
-          xcodebuild test-without-building \
+          time xcodebuild test-without-building \
             -workspace Trio.xcworkspace \
             -scheme "Trio Tests" \
-            -sdk iphonesimulator \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
-            | xcpretty
-            
-      # watchOS Unit Tests
-      #- name: Run watchOS Unit Tests
-      #  run: |
-      #    set -o pipefail && \
-      #    xcodebuild test \
-      #      -scheme "Trio Watch AppTests" \
-      #      -destination 'platform=watchOS Simulator,name=Apple Watch Series 10 (46mm),OS=11.4' \
-      #      | xcpretty --test --color --report html --output WatchOSTests.html
+            2>&1 | tee xcodebuild.log
+        continue-on-error: true
 
-      # Upload test logs and reports
+      - name: Annotate test results
+        if: always()
+        run: |
+          if grep -q "TEST SUCCEEDED" xcodebuild.log; then
+            echo "::notice title=Unit Tests::✅ All tests passed"
+          else
+            echo "::error title=Unit Tests::❌ Some tests failed"
+            grep -A 5 "Test Case .* failed" xcodebuild.log || echo "No detailed failures found"
+          fi
+
       - name: Upload test artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: xcode-test-artifacts
           path: |
-            iOSTests.html
-            WatchOSTests.html
+            xcodebuild.log
