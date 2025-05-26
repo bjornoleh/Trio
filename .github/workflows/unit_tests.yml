@@ -42,7 +42,7 @@ jobs:
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
             -resultBundlePath build/TrioTests.xcresult || true
 
-          xcrun xccov view --report --json build/TrioTests.xcresult > test-results/TrioTests.json
+          #xcrun xccov view --report --json build/TrioTests.xcresult > test-results/TrioTests.json
           xcrun xcresulttool get --path build/TrioTests.xcresult --format json > test-results/TrioTests.raw.json
 
         continue-on-error: true
