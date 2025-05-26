@@ -37,6 +37,7 @@ jobs:
             -workspace Trio.xcworkspace \
             -scheme "Trio Tests" \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
+            -resultBundlePath TestResults.xcresult
             2>&1 | tee xcodebuild.log
         continue-on-error: true
 
@@ -64,10 +65,34 @@ jobs:
             echo "::notice title=Unit Tests Passed::✅ All tests passed"
           fi
 
+          - name: Convert .xcresult to JUnit XML
+          run: |
+            brew install chargepoint/xcparse/xcparse || echo "xcparse already installed"
+            mkdir -p test-results
+            xcparse junit --output test-results TestResults.xcresult
+
+          - name: Publish test results
+          uses: dorny/test-reporter@v1
+          if: always()
+          with:
+            name: Unit Tests
+            path: test-results/*.xml
+            reporter: java-junit
+          
       - name: Upload test artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: xcode-test-artifacts
           path: |
-            xcodebuild.log
+            TestResults.xcresult
+            test-results
+
+      - name: Annotate summary
+        if: always()
+        run: |
+          total=$(grep -o 'testsuite tests="[0-9]*"' test-results/*.xml | sed 's/[^0-9]*//g')
+          failures=$(grep -o 'failures="[0-9]*"' test-results/*.xml | sed 's/[^0-9]*//g')
+          echo "## 🧪 Unit Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "**Total tests:** $total" >> $GITHUB_STEP_SUMMARY
+          echo "**Failures:** $failures" >> $GITHUB_STEP_SUMMARY
