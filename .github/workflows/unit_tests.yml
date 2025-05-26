@@ -43,11 +43,25 @@ jobs:
       - name: Annotate test results
         if: always()
         run: |
-          if grep -q "TEST SUCCEEDED" xcodebuild.log; then
-            echo "::notice title=Unit Tests::✅ All tests passed"
+          summary_line=$(grep -E "Test run with [0-9]+ tests (failed|passed)" xcodebuild.log | head -n1)
+
+          if echo "$summary_line" | grep -q "failed"; then
+            echo "::error title=Unit Tests Failed::$summary_line"
+
+            echo "##[error]❌ Some tests failed:"
+            grep -A 10 "Failing tests:" xcodebuild.log | \
+              sed -n '/Failing tests:/,/^[^ ]/p' | \
+              grep -E '^\s+[A-Za-z0-9]+\..+\(\)' | \
+              sed 's/^/  - /' >> $GITHUB_STEP_SUMMARY
+
+            echo "::group::Failed Test List"
+            grep -A 10 "Failing tests:" xcodebuild.log | \
+              grep -E '^\s+[A-Za-z0-9]+\..+\(\)' | \
+              sed 's/^/  - /'
+            echo "::endgroup::"
+
           else
-            echo "::error title=Unit Tests::❌ Some tests failed"
-            grep -A 5 "Test Case .* failed" xcodebuild.log || echo "No detailed failures found"
+            echo "::notice title=Unit Tests Passed::✅ All tests passed"
           fi
 
       - name: Upload test artifacts
