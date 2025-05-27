@@ -29,70 +29,78 @@ jobs:
             -workspace Trio.xcworkspace \
             -scheme "Trio Tests" \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
-      
-      - name: Run Trio unit tests
+
+      - name: Run tests and save log
         run: |
-          set -o pipefail && \
+          set -o pipefail
           time xcodebuild test-without-building \
             -workspace Trio.xcworkspace \
             -scheme "Trio Tests" \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
-            -resultBundlePath TestResults.xcresult
-            2>&1 | tee xcodebuild.log
+            -resultBundlePath TestResults.xcresult \
+          2>&1 | tee xcodebuild.log
         continue-on-error: true
 
       - name: Annotate test results
         if: always()
         run: |
-          summary_line=$(grep -E "Test run with [0-9]+ tests (failed|passed)" xcodebuild.log | head -n1)
+          if [ -f xcodebuild.log ]; then
+            summary_line=$(grep -E "Test run with [0-9]+ tests (failed|passed)" xcodebuild.log | head -n1)
 
-          if echo "$summary_line" | grep -q "failed"; then
-            echo "::error title=Unit Tests Failed::$summary_line"
+            if echo "$summary_line" | grep -q "failed"; then
+              echo "::error title=Unit Tests Failed::$summary_line"
+              echo "## ❌ Some tests failed:" >> $GITHUB_STEP_SUMMARY
 
-            echo "##[error]❌ Some tests failed:"
-            grep -A 10 "Failing tests:" xcodebuild.log | \
-              sed -n '/Failing tests:/,/^[^ ]/p' | \
-              grep -E '^\s+[A-Za-z0-9]+\..+\(\)' | \
-              sed 's/^/  - /' >> $GITHUB_STEP_SUMMARY
+              grep -A 10 "Failing tests:" xcodebuild.log | \
+                grep -E '^\s+[A-Za-z0-9]+\..+\(\)' | \
+                sed 's/^/  - /' >> $GITHUB_STEP_SUMMARY
 
-            echo "::group::Failed Test List"
-            grep -A 10 "Failing tests:" xcodebuild.log | \
-              grep -E '^\s+[A-Za-z0-9]+\..+\(\)' | \
-              sed 's/^/  - /'
-            echo "::endgroup::"
-
+              echo "::group::Failed Test List"
+              grep -A 10 "Failing tests:" xcodebuild.log | \
+                grep -E '^\s+[A-Za-z0-9]+\..+\(\)' | \
+                sed 's/^/  - /'
+              echo "::endgroup::"
+            else
+              echo "::notice title=Unit Tests Passed::✅ All tests passed"
+              echo "✅ All tests passed" >> $GITHUB_STEP_SUMMARY
+            fi
           else
-            echo "::notice title=Unit Tests Passed::✅ All tests passed"
+            echo "::warning::Test log (xcodebuild.log) not found"
           fi
 
-          - name: Convert .xcresult to JUnit XML
-          run: |
-            brew install chargepoint/xcparse/xcparse || echo "xcparse already installed"
-            mkdir -p test-results
-            xcparse junit --output test-results TestResults.xcresult
+      - name: Convert .xcresult to JUnit XML
+        run: |
+          brew install chargepoint/xcparse/xcparse || echo "xcparse already installed"
+          mkdir -p test-results
+          xcparse junit --output test-results TestResults.xcresult || echo "xcparse failed"
 
-          - name: Publish test results
-          uses: dorny/test-reporter@v1
-          if: always()
-          with:
-            name: Unit Tests
-            path: test-results/*.xml
-            reporter: java-junit
-          
+      - name: Publish test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Unit Tests
+          path: test-results/*.xml
+          reporter: java-junit
+
       - name: Upload test artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: xcode-test-artifacts
           path: |
+            xcodebuild.log
             TestResults.xcresult
             test-results
 
       - name: Annotate summary
         if: always()
         run: |
-          total=$(grep -o 'testsuite tests="[0-9]*"' test-results/*.xml | sed 's/[^0-9]*//g')
-          failures=$(grep -o 'failures="[0-9]*"' test-results/*.xml | sed 's/[^0-9]*//g')
-          echo "## 🧪 Unit Test Summary" >> $GITHUB_STEP_SUMMARY
-          echo "**Total tests:** $total" >> $GITHUB_STEP_SUMMARY
-          echo "**Failures:** $failures" >> $GITHUB_STEP_SUMMARY
+          if ls test-results/*.xml 1> /dev/null 2>&1; then
+            total=$(grep -o 'testsuite tests="[0-9]*"' test-results/*.xml | sed 's/[^0-9]*//g')
+            failures=$(grep -o 'failures="[0-9]*"' test-results/*.xml | sed 's/[^0-9]*//g')
+            echo "## 🧪 Unit Test Summary" >> $GITHUB_STEP_SUMMARY
+            echo "**Total tests:** $total" >> $GITHUB_STEP_SUMMARY
+            echo "**Failures:** $failures" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "::warning::JUnit summary skipped — no XML files found"
+          fi
