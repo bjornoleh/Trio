@@ -66,26 +66,21 @@ jobs:
             echo "::warning::Test log (xcodebuild.log) not found"
           fi
 
-
-      - name: Convert .xcresult to JUnit XML
+      - name: Install xchtmlreport
         run: |
-          brew install chargepoint/xcparse/xcparse || echo "xcparse already installed"
-          mkdir -p test-results
-          xcparse junit TestResults.xcresult --output test-results || echo "xcparse failed"
-          
-      - name: Debug test-results output
-        if: always()
-        run: |
-          echo "::group::List test-results"
-          ls -lR test-results || echo "test-results directory missing"
-          echo "::endgroup::"
+          brew install xchtmlreport
   
+      - name: Generate test reports (JUnit & HTML)
+        run: |
+          mkdir -p test-results/html
+          xchtmlreport -r TestResults.xcresult -j test-results/junit.xml -o test-results/html
+
       - name: Publish test results
         uses: dorny/test-reporter@v1
         if: always()
         with:
           name: Unit Tests
-          path: test-results/**/*.xml
+          path: test-results/junit.xml
           reporter: java-junit
 
       - name: Upload test artifacts
@@ -101,12 +96,12 @@ jobs:
       - name: Annotate summary
         if: always()
         run: |
-          if ls test-results/*.xml 1> /dev/null 2>&1; then
-            total=$(grep -o 'testsuite tests="[0-9]*"' test-results/*.xml | sed 's/[^0-9]*//g')
-            failures=$(grep -o 'failures="[0-9]*"' test-results/*.xml | sed 's/[^0-9]*//g')
+          if [ -f test-results/junit.xml ]; then
+            total=$(grep -o 'testsuite tests="[0-9]*"' test-results/junit.xml | sed 's/[^0-9]*//g')
+            failures=$(grep -o 'failures="[0-9]*"' test-results/junit.xml | sed 's/[^0-9]*//g')
             echo "## 🧪 Unit Test Summary" >> $GITHUB_STEP_SUMMARY
             echo "**Total tests:** $total" >> $GITHUB_STEP_SUMMARY
             echo "**Failures:** $failures" >> $GITHUB_STEP_SUMMARY
           else
-            echo "::warning::JUnit summary skipped — no XML files found"
+            echo "::warning::JUnit summary skipped — no XML file found"
           fi
