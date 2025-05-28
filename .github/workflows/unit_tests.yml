@@ -45,18 +45,16 @@ jobs:
         if: always()
         run: |
           if [ -f xcodebuild.log ]; then
-            summary_line=$(grep -E "Test run with [0-9]+ tests (failed|passed)" xcodebuild.log | head -n1)
-
-            if echo "$summary_line" | grep -q "failed"; then
-              echo "::error title=Unit Tests Failed::$summary_line"
+            if grep -q "Failing tests:" xcodebuild.log; then
+              echo "::error title=Unit Tests Failed::Some tests failed"
               echo "## ❌ Some tests failed:" >> $GITHUB_STEP_SUMMARY
 
-              grep -A 10 "Failing tests:" xcodebuild.log | \
+              grep -A 20 "Failing tests:" xcodebuild.log | \
                 grep -E '^\s+[A-Za-z0-9]+\..+\(\)' | \
                 sed 's/^/  - /' >> $GITHUB_STEP_SUMMARY
 
               echo "::group::Failed Test List"
-              grep -A 10 "Failing tests:" xcodebuild.log | \
+              grep -A 20 "Failing tests:" xcodebuild.log | \
                 grep -E '^\s+[A-Za-z0-9]+\..+\(\)' | \
                 sed 's/^/  - /'
               echo "::endgroup::"
@@ -67,6 +65,7 @@ jobs:
           else
             echo "::warning::Test log (xcodebuild.log) not found"
           fi
+
 
       - name: Convert .xcresult to JUnit XML
         run: |
