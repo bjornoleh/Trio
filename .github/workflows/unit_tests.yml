@@ -3,9 +3,9 @@ name: zzz [DO NOT RUN] Automated unit tests
 on:
   workflow_dispatch: # TODO: remove this after testing
   pull_request:
-    branches: [trio_tests_ci_no_scheme_changes]
+    branches: [trio_tests_incl_LoopKit_tests]
   push:
-    branches: [trio_tests_ci_no_scheme_changes]
+    branches: [trio_tests_incl_LoopKit_tests]
 
 jobs:
   test:
@@ -28,7 +28,7 @@ jobs:
           set -o pipefail && \
           time xcodebuild build-for-testing \
             -workspace Trio.xcworkspace \
-            -scheme "Trio Tests" \
+            -scheme "Trio" \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
 
       - name: Run tests
@@ -36,7 +36,7 @@ jobs:
           set -o pipefail
           time xcodebuild test-without-building \
             -workspace Trio.xcworkspace \
-            -scheme "Trio Tests" \
+            -scheme "Trio" \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
           2>&1 | tee xcodebuild.log
         continue-on-error: true
