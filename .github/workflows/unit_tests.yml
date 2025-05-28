@@ -31,7 +31,7 @@ jobs:
             -scheme "Trio Tests" \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
 
-      - name: Run tests and save log
+      - name: Run tests
         run: |
           set -o pipefail
           time xcodebuild test-without-building \
@@ -45,23 +45,36 @@ jobs:
         if: always()
         run: |
           if [ -f xcodebuild.log ]; then
-            if grep -q "Failing tests:" xcodebuild.log; then
-              echo "::error title=Unit Tests Failed::Some tests failed"
+            summary_line=$(grep -E "Test run with [0-9]+ tests (failed|passed)" xcodebuild.log | head -n1)
+      
+            # Extract failing tests and format with newlines for annotation
+            failed_tests=$(grep -A 20 "Failing tests:" xcodebuild.log | \
+              grep -E '^\s+[A-Za-z0-9]+\..+\(\)' | \
+              sed 's/^[ \t]*//' )
+      
+            # Join failed tests into a single string with `\n`
+            failed_tests_inline=$(echo "$failed_tests" | sed ':a;N;$!ba;s/\n/\\n/g')
+      
+            if echo "$summary_line" | grep -q "failed"; then
+              if [ -z "$failed_tests" ]; then
+                echo "::error title=Unit Tests Failed::$summary_line"
+              else
+                echo "::error title=Unit Tests Failed::$summary_line\\n$failed_tests_inline"
+              fi
+      
               echo "## ❌ Some tests failed:" >> $GITHUB_STEP_SUMMARY
-
-              grep -A 20 "Failing tests:" xcodebuild.log | \
-                grep -E '^\s+[A-Za-z0-9]+\..+\(\)' | \
-                sed 's/^/  - /' >> $GITHUB_STEP_SUMMARY
-
+              echo "$failed_tests" | sed 's/^/  - /' >> $GITHUB_STEP_SUMMARY
+      
               echo "::group::Failed Test List"
-              grep -A 20 "Failing tests:" xcodebuild.log | \
-                grep -E '^\s+[A-Za-z0-9]+\..+\(\)' | \
-                sed 's/^/  - /'
+              echo "$failed_tests" | sed 's/^/  - /'
               echo "::endgroup::"
+      
+              exit 1  # 🔴 Explicitly fail the job if any tests failed
             else
               echo "::notice title=Unit Tests Passed::✅ All tests passed"
               echo "✅ All tests passed" >> $GITHUB_STEP_SUMMARY
             fi
           else
             echo "::warning::Test log (xcodebuild.log) not found"
+            exit 1
           fi
