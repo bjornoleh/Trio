@@ -73,13 +73,20 @@ jobs:
           brew install chargepoint/xcparse/xcparse || echo "xcparse already installed"
           mkdir -p test-results
           xcparse junit --output test-results TestResults.xcresult || echo "xcparse failed"
-
+          
+      - name: Debug test-results output
+        if: always()
+        run: |
+          echo "::group::List test-results"
+          ls -lR test-results || echo "test-results directory missing"
+          echo "::endgroup::"
+  
       - name: Publish test results
         uses: dorny/test-reporter@v1
         if: always()
         with:
           name: Unit Tests
-          path: test-results/*.xml
+          path: test-results/**/*.xml
           reporter: java-junit
 
       - name: Upload test artifacts
