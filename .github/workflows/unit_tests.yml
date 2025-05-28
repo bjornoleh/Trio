@@ -47,19 +47,20 @@ jobs:
           if [ -f xcodebuild.log ]; then
             summary_line=$(grep -E "Test run with [0-9]+ tests (failed|passed)" xcodebuild.log | head -n1)
       
-            # Extract failing tests and format with newlines for annotation
+            # Extract failing tests
             failed_tests=$(grep -A 20 "Failing tests:" xcodebuild.log | \
               grep -E '^\s+[A-Za-z0-9]+\..+\(\)' | \
               sed 's/^[ \t]*//' )
-      
-            # Join failed tests into a single string with `\n`
-            failed_tests_inline=$(echo "$failed_tests" | sed ':a;N;$!ba;s/\n/\\n/g')
       
             if echo "$summary_line" | grep -q "failed"; then
               if [ -z "$failed_tests" ]; then
                 echo "::error title=Unit Tests Failed::$summary_line"
               else
-                echo "::error title=Unit Tests Failed::$summary_line\\n$failed_tests_inline"
+                {
+                  echo "::error title=Unit Tests Failed::"
+                  echo "$summary_line"
+                  echo "$failed_tests"
+                }
               fi
       
               echo "## ❌ Some tests failed:" >> $GITHUB_STEP_SUMMARY
@@ -69,7 +70,7 @@ jobs:
               echo "$failed_tests" | sed 's/^/  - /'
               echo "::endgroup::"
       
-              exit 1  # 🔴 Explicitly fail the job if any tests failed
+              exit 1  # fail the job
             else
               echo "::notice title=Unit Tests Passed::✅ All tests passed"
               echo "✅ All tests passed" >> $GITHUB_STEP_SUMMARY
@@ -78,3 +79,4 @@ jobs:
             echo "::warning::Test log (xcodebuild.log) not found"
             exit 1
           fi
+      
