@@ -643,13 +643,18 @@ final class BaseTDDStorage: TDDStorage, Injectable {
     /// - The record's date is within the last 7 days. ## Edited to 1 day
     /// - The total value is greater than 0.
     ///
-    /// It then checks if at least 85% of the expected data points are present,
+    /// It then checks if at least 75% of the expected data points are present,
     /// assuming at least 288 expected entries per day (one every 5 minutes).
     ///
     /// - Returns: `true` if sufficient TDD data is available, otherwise `false`.
     /// - Throws: An error if the Core Data count operation fails.
     func hasSufficientTDD() async throws -> Bool {
-        try await privateContext.perform {
+        try await BaseTDDStorage.hasSufficientTDD(context: privateContext)
+    }
+
+    /// internal function with context exposed to enable testing
+    static func hasSufficientTDD(context: NSManagedObjectContext) async throws -> Bool {
+        try await context.perform {
             let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "TDDStored")
             fetchRequest.predicate = NSPredicate(
                 format: "date > %@ AND total > 0",
