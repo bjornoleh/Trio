@@ -663,7 +663,7 @@ final class BaseTDDStorage: TDDStorage, Injectable {
             fetchRequest.resultType = .countResultType
 
             let count = try context.count(for: fetchRequest)
-            let threshold = Int(Double(7 * 288) * 0.75)
+            let threshold = Int(Double(1 * 288) * 0.75)
             return count >= threshold
         }
     }
