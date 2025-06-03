@@ -3,9 +3,9 @@ name: zzz [DO NOT RUN] Automated unit tests
 on:
   workflow_dispatch: # TODO: remove this after testing
   pull_request:
-    branches: [trio_tests_ci_no_scheme_changes]
+    branches: [trio_tests_ci4]
   push:
-    branches: [trio_tests_ci_no_scheme_changes]
+    branches: [trio_tests_ci4]
 
 jobs:
   test:
