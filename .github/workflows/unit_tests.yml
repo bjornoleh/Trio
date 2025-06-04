@@ -1,5 +1,8 @@
 name: zzz [DO NOT RUN] Automated unit tests
 
+env:
+  ENABLE_PARALLEL_TESTING: ${{ vars.ENABLE_PARALLEL_TESTING }}
+
 on:
   workflow_dispatch: # TODO: remove this after testing
   pull_request:
@@ -108,6 +111,7 @@ jobs:
             -workspace Trio.xcworkspace \
             -scheme "Trio Tests" \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
+            $([ "$ENABLE_PARALLEL_TESTING" = "true" ] && echo "-parallel-testing-enabled YES")
           2>&1 | tee xcodebuild.log
 
       - name: Annotate test results
