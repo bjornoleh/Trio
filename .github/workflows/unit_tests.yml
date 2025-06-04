@@ -20,6 +20,7 @@ on:
     branches:
       - dev
       - main
+      - unit_tests_ci_caching
     paths-ignore:
       - '**.md'
       - '**/README'
