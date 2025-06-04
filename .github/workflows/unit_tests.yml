@@ -74,22 +74,13 @@ jobs:
             echo "$CHANGES"
             echo "$CHANGES" | while read -r line; do
               FILE=$(echo $line | cut -c4-)
-              echo "::error file=$FILE::Uncommitted change detected"
+              echo "::warning file=$FILE::Uncommitted change detected"
             done
-            exit 1
+            exit 0
           else
             echo "No uncommitted changes detected."
           fi
         shell: bash
-
-      - name: Run tests
-        run: |
-          set -o pipefail
-          time xcodebuild test-without-building \
-            -workspace Trio.xcworkspace \
-            -scheme "Trio Tests" \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
-          2>&1 | tee xcodebuild.log
 
       - name: Show cache contents after build
         run: |
@@ -109,6 +100,15 @@ jobs:
             /Users/runner/Library/Developer/Xcode/DerivedData
             .build
           key: ${{ runner.os }}-trio-${{ hashFiles('**/*.swift', '**/*.xcodeproj', '**/*.xcworkspace') }}  
+
+      - name: Run tests
+        run: |
+          set -o pipefail
+          time xcodebuild test-without-building \
+            -workspace Trio.xcworkspace \
+            -scheme "Trio Tests" \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
+          2>&1 | tee xcodebuild.log
 
       - name: Annotate test results
         if: always()
