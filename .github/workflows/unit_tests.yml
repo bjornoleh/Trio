@@ -67,7 +67,7 @@ jobs:
           time xcodebuild build-for-testing \
             -workspace Trio.xcworkspace \
             -scheme "Trio Tests" \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
+            -destination 'platform=iOS Simulator,name=iPhone SE (3rd generation),OS=18.4' \
 
       - name: Check for uncommitted changes
         run: |
