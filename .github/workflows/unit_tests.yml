@@ -6,6 +6,7 @@ on:
     branches:
       - dev
       - main
+    types: [opened, synchronize]
     paths-ignore:
       - '**.md'
       - '**/README'
