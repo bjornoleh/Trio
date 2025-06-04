@@ -24,7 +24,7 @@ on:
     paths-ignore:
       - '**.md'
       - '**/README'
-      - '**.yml'
+      # - '**.yml' commented out for testing
       - '**.txt'
 
 jobs:
