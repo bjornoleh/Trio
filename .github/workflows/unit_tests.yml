@@ -27,6 +27,16 @@ jobs:
           fetch-depth: 1
           submodules: recursive
 
+      - name: Cache DerivedData and .build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Developer/Xcode/DerivedData
+            .build
+          key: ${{ runner.os }}-trio-${{ hashFiles('**/*.swift', '**/*.xcodeproj', '**/*.xcworkspace') }}
+          restore-keys: |
+            ${{ runner.os }}-trio-
+
       - name: Build for testing
         run: |
           set -o pipefail && \
