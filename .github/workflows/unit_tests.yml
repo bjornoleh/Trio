@@ -68,7 +68,7 @@ jobs:
           time xcodebuild build-for-testing \
             -workspace Trio.xcworkspace \
             -scheme "Trio Tests" \
-            -destination 'platform=iOS Simulator,name=iPhone SE (3rd generation),OS=18.4' \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
 
       - name: Check for uncommitted changes
         run: |
@@ -111,7 +111,7 @@ jobs:
           time xcodebuild test-without-building \
             -workspace Trio.xcworkspace \
             -scheme "Trio Tests" \
-            -destination 'platform=iOS Simulator,name=iPhone SE (3rd generation),OS=18.4' \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
             $([ "$ENABLE_PARALLEL_TESTING" = "true" ] && echo "-parallel-testing-enabled YES") \
             2>&1 | tee xcodebuild.log
 
