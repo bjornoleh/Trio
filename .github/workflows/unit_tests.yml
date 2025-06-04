@@ -38,15 +38,24 @@ jobs:
           fetch-depth: 1
           submodules: recursive
 
-      - name: Cache DerivedData and .build
-        uses: actions/cache@v4
+      - name: Restore cache
+        id: cache-restore
+        uses: actions/cache/restore@v4
         with:
           path: |
-            ~/Library/Developer/Xcode/DerivedData
+            /Users/runner/Library/Developer/Xcode/DerivedData
             .build
           key: ${{ runner.os }}-trio-${{ hashFiles('**/*.swift', '**/*.xcodeproj', '**/*.xcworkspace') }}
           restore-keys: |
             ${{ runner.os }}-trio-
+
+      - name: Show cache contents before build
+        run: |
+          echo "📂 Contents of DerivedData:"
+          ls -lah /Users/runner/Library/Developer/Xcode/DerivedData || echo "Directory not found"
+          echo ""
+          echo "📂 Contents of .build:"
+          ls -lah .build || echo ".build directory not found"
 
       - name: Build for testing
         run: |
@@ -80,6 +89,25 @@ jobs:
             -scheme "Trio Tests" \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
           2>&1 | tee xcodebuild.log
+
+      - name: Show cache contents after build
+        run: |
+          echo "📂 Updated DerivedData contents:"
+          du -sh /Users/runner/Library/Developer/Xcode/DerivedData || echo "Directory not found"
+          ls -lah /Users/runner/Library/Developer/Xcode/DerivedData || echo "Directory not found"
+          echo ""
+          echo "📂 Updated .build contents:"
+          du -sh .build || echo ".build directory not found"
+          ls -lah .build || echo ".build directory not found"
+          
+      - name: Save cache
+        if: steps.cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            /Users/runner/Library/Developer/Xcode/DerivedData
+            .build
+          key: ${{ runner.os }}-trio-${{ hashFiles('**/*.swift', '**/*.xcodeproj', '**/*.xcworkspace') }}  
 
       - name: Annotate test results
         if: always()
