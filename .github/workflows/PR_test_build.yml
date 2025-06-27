@@ -19,6 +19,8 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v4
         with:
+          repository: nightscout/Trio
+          ref: dev
           token: ${{ secrets.GH_PAT }}
           submodules: recursive
           fetch-depth: 1
