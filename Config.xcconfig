@@ -9,7 +9,7 @@ DEVELOPER_TEAM = ##TEAM_ID##
 // Typically this is not modified unless you want to create a separate (unique) app using your ID
 // It must include $(DEVELOPMENT_TEAM)
 // For example: myOwnApp.$(DEVELOPMENT_TEAM).trio
-BUNDLE_IDENTIFIER = org.nightscout.$(DEVELOPMENT_TEAM).trio
+BUNDLE_IDENTIFIER = org.nightscout.$(DEVELOPMENT_TEAM).trio-bo
 
 // Danger zone - do not modify these unless you know what you are doing
 
@@ -23,7 +23,6 @@ APP_DEV_VERSION = 0.5.1.4
 APP_BUILD_NUMBER = 1
 COPYRIGHT_NOTICE =
 DEVELOPER_TEAM = ##TEAM_ID##
-BUNDLE_IDENTIFIER = org.nightscout.$(DEVELOPMENT_TEAM).trio-bo
 APP_ICON = trioBlack
 APP_URL_SCHEME = Trio
 
