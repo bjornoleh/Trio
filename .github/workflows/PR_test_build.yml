@@ -31,17 +31,15 @@ jobs:
           gh pr checkout ${{ vars.PR_NUMBER }} --repo nightscout/Trio --recurse-submodules
           git submodule
 
-      - name: Get ALTERNATIVE_BUNDLE_ID, or set empty value if it does not exist as a repository variable
-        run: echo "ALTERNATIVE_BUNDLE_ID=${{ vars.ALTERNATIVE_BUNDLE_ID }}" >> $GITHUB_ENV
+      - name: Get BUNDLE_ID_SUFFIX, or set empty value if not defined
+        run: echo "BUNDLE_ID_SUFFIX=${{ vars.BUNDLE_ID_SUFFIX }}" >> $GITHUB_ENV
 
-      - name: Check if alternative bundle ID is set
-        if: ${{ env.ALTERNATIVE_BUNDLE_ID == '' }}
-        run: echo 'ALTERNATIVE_BUNDLE_ID is not set. Skipping BUNDLE_IDENTIFIER configuration.'
-
-      - name: Use alternative bundle ID for PR test build
-        if: ${{ env.ALTERNATIVE_BUNDLE_ID != '' }}
-        run: echo 'BUNDLE_IDENTIFIER = ${{ env.ALTERNATIVE_BUNDLE_ID }}' >> Config.xcconfig
-
+      - name: Set BUNDLE_IDENTIFIER with optional suffix appended to 'trio'
+        run: |
+          BASE_ID="org.nightscout.\$(DEVELOPMENT_TEAM).trio"
+          FINAL_ID="${BASE_ID}${BUNDLE_ID_SUFFIX}"
+          echo "BUNDLE_IDENTIFIER = ${FINAL_ID}" >> Config.xcconfig
+          
       # Patch Fastlane Match to not print tables
       - name: Patch Match Tables
         run: find /usr/local/lib/ruby/gems -name table_printer.rb | xargs sed -i "" "/puts(Terminal::Table.new(params))/d"
