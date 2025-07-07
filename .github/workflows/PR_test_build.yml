@@ -41,7 +41,7 @@ jobs:
           [[ -n "$SUFFIX" ]] && BASE="${BASE}${SUFFIX}"
 
           # Write final bundle ID using dynamic suffix
-          echo "BUNDLE_IDENTIFIER = org.nightscout.$(DEVELOPMENT_TEAM).$BASE" >> ConfigOverride.xcconfig
+          echo "BUNDLE_IDENTIFIER = org.nightscout.\$(DEVELOPMENT_TEAM).$BASE" >> ConfigOverride.xcconfig
 
 
       # Patch Fastlane Match to not print tables
