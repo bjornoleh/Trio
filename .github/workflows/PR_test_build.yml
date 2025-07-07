@@ -31,16 +31,18 @@ jobs:
           gh pr checkout ${{ vars.PR_NUMBER }} --repo nightscout/Trio --recurse-submodules
           git submodule
 
-      - name: Get ALTERNATIVE_BUNDLE_ID, or set empty value if it does not exist as a repository variable
-        run: echo "ALTERNATIVE_BUNDLE_ID=${{ vars.ALTERNATIVE_BUNDLE_ID }}" >> $GITHUB_ENV
+      - name: Create ConfigOverride with optional bundle ID suffix
+        run: |
+          echo "DEVELOPER_TEAM = ${{ secrets.TEAMID }}" > ConfigOverride.xcconfig
 
-      - name: Check if alternative bundle ID is set
-        if: ${{ env.ALTERNATIVE_BUNDLE_ID == '' }}
-        run: echo 'ALTERNATIVE_BUNDLE_ID is not set. Skipping BUNDLE_IDENTIFIER configuration.'
+          # Determine the bundle suffix (default is empty)
+          SUFFIX="${{ vars.BUNDLE_ID_SUFFIX }}"
+          BASE="trio"
+          [[ -n "$SUFFIX" ]] && BASE="${BASE}${SUFFIX}"
 
-      - name: Use alternative bundle ID for PR test build
-        if: ${{ env.ALTERNATIVE_BUNDLE_ID != '' }}
-        run: echo 'BUNDLE_IDENTIFIER = ${{ env.ALTERNATIVE_BUNDLE_ID }}' >> Config.xcconfig
+          # Write final bundle ID using dynamic suffix
+          echo "BUNDLE_IDENTIFIER = org.nightscout.$(DEVELOPMENT_TEAM).$BASE" >> ConfigOverride.xcconfig
+
 
       # Patch Fastlane Match to not print tables
       - name: Patch Match Tables
