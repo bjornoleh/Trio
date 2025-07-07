@@ -33,16 +33,19 @@ jobs:
 
       - name: Create ConfigOverride with optional bundle ID suffix
         run: |
+          echo "Working directory: $(pwd)"
+          ls -la
+
           echo "DEVELOPER_TEAM = ${{ secrets.TEAMID }}" > ConfigOverride.xcconfig
 
-          # Determine the bundle suffix (default is empty)
           SUFFIX="${{ vars.BUNDLE_ID_SUFFIX }}"
           BASE="trio"
           [[ -n "$SUFFIX" ]] && BASE="${BASE}${SUFFIX}"
 
-          # Write final bundle ID using dynamic suffix
           echo "BUNDLE_IDENTIFIER = org.nightscout.\$(DEVELOPMENT_TEAM).$BASE" >> ConfigOverride.xcconfig
 
+          echo "--- ConfigOverride.xcconfig contents ---"
+          cat ConfigOverride.xcconfig
 
       # Patch Fastlane Match to not print tables
       - name: Patch Match Tables
