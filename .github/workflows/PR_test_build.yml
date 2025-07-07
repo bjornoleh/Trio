@@ -31,21 +31,38 @@ jobs:
           gh pr checkout ${{ vars.PR_NUMBER }} --repo nightscout/Trio --recurse-submodules
           git submodule
 
-      - name: Create ConfigOverride with optional bundle ID suffix
+      - name: Patch Config.xcconfig with bundle ID and team ID
         run: |
-          echo "Working directory: $(pwd)"
-          ls -la
+          CONFIG_FILE="Config.xcconfig"
 
-          echo "DEVELOPER_TEAM = ${{ secrets.TEAMID }}" > ConfigOverride.xcconfig
-
+          # Variables from GitHub context
+          TEAM_ID="${{ secrets.TEAMID }}"
           SUFFIX="${{ vars.BUNDLE_ID_SUFFIX }}"
           BASE="trio"
           [[ -n "$SUFFIX" ]] && BASE="${BASE}${SUFFIX}"
+          BUNDLE_ID="org.nightscout.${TEAM_ID}.${BASE}"
 
-          echo "BUNDLE_IDENTIFIER = org.nightscout.\$(DEVELOPMENT_TEAM).$BASE" >> ConfigOverride.xcconfig
+          # Function to replace or insert key-value pairs in .xcconfig
+          update_xcconfig_key() {
+            local key="$1"
+            local value="$2"
+            local file="$3"
 
-          echo "--- ConfigOverride.xcconfig contents ---"
-          cat ConfigOverride.xcconfig
+            if grep -q "^${key} *=.*" "$file"; then
+              sed -i '' "s|^${key} *=.*|${key} = ${value}|" "$file"
+            else
+              echo "${key} = ${value}" >> "$file"
+            fi
+          }
+
+          echo "--- Before update ---"
+          cat "$CONFIG_FILE"
+
+          update_xcconfig_key "DEVELOPER_TEAM" "$TEAM_ID" "$CONFIG_FILE"
+          update_xcconfig_key "BUNDLE_IDENTIFIER" "$BUNDLE_ID" "$CONFIG_FILE"
+
+          echo "--- After update ---"
+          cat "$CONFIG_FILE"
 
       # Patch Fastlane Match to not print tables
       - name: Patch Match Tables
