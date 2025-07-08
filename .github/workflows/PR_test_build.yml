@@ -31,18 +31,16 @@ jobs:
           gh pr checkout ${{ vars.PR_NUMBER }} --repo nightscout/Trio --recurse-submodules
           git submodule
 
-      - name: Patch Config.xcconfig with bundle ID and team ID
+      - name: Patch Config.xcconfig with bundle ID suffix
         run: |
           CONFIG_FILE="Config.xcconfig"
 
-          # Variables from GitHub context
-          TEAM_ID="${{ secrets.TEAMID }}"
           SUFFIX="${{ vars.BUNDLE_ID_SUFFIX }}"
           BASE="trio"
           [[ -n "$SUFFIX" ]] && BASE="${BASE}${SUFFIX}"
-          BUNDLE_ID="org.nightscout.${TEAM_ID}.${BASE}"
+          BUNDLE_ID="org.nightscout.\$(DEVELOPMENT_TEAM).${BASE}"
 
-          # Function to replace or insert key-value pairs in .xcconfig
+          # Function to replace or insert BUNDLE_IDENTIFIER
           update_xcconfig_key() {
             local key="$1"
             local value="$2"
@@ -58,11 +56,11 @@ jobs:
           echo "--- Before update ---"
           cat "$CONFIG_FILE"
 
-          update_xcconfig_key "DEVELOPER_TEAM" "$TEAM_ID" "$CONFIG_FILE"
           update_xcconfig_key "BUNDLE_IDENTIFIER" "$BUNDLE_ID" "$CONFIG_FILE"
 
           echo "--- After update ---"
           cat "$CONFIG_FILE"
+
 
       # Patch Fastlane Match to not print tables
       - name: Patch Match Tables
