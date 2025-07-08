@@ -31,36 +31,27 @@ jobs:
           gh pr checkout ${{ vars.PR_NUMBER }} --repo nightscout/Trio --recurse-submodules
           git submodule
 
-      - name: Patch Config.xcconfig with bundle ID suffix
+      - name: Apply BUNDLE_ID_SUFFIX to Config.xcconfig
         run: |
           CONFIG_FILE="Config.xcconfig"
-
           SUFFIX="${{ vars.BUNDLE_ID_SUFFIX }}"
           BASE="trio"
-          [[ -n "$SUFFIX" ]] && BASE="${BASE}${SUFFIX}"
-          BUNDLE_ID="org.nightscout.\$(DEVELOPMENT_TEAM).${BASE}"
 
-          # Function to replace or insert BUNDLE_IDENTIFIER
-          update_xcconfig_key() {
-            local key="$1"
-            local value="$2"
-            local file="$3"
+          if [[ -n "$SUFFIX" ]]; then
+            BASE="${BASE}${SUFFIX}"
+            BUNDLE_ID="org.nightscout.\$(DEVELOPMENT_TEAM).${BASE}"
 
-            if grep -q "^${key} *=.*" "$file"; then
-              sed -i '' "s|^${key} *=.*|${key} = ${value}|" "$file"
+            if grep -q "^BUNDLE_IDENTIFIER *=.*" "$CONFIG_FILE"; then
+              sed -i '' "s|^BUNDLE_IDENTIFIER *=.*|BUNDLE_IDENTIFIER = ${BUNDLE_ID}|" "$CONFIG_FILE"
             else
-              echo "${key} = ${value}" >> "$file"
+              echo "BUNDLE_IDENTIFIER = ${BUNDLE_ID}" >> "$CONFIG_FILE"
             fi
-          }
 
-          echo "--- Before update ---"
-          cat "$CONFIG_FILE"
-
-          update_xcconfig_key "BUNDLE_IDENTIFIER" "$BUNDLE_ID" "$CONFIG_FILE"
-
-          echo "--- After update ---"
-          cat "$CONFIG_FILE"
-
+            echo "Using BUNDLE_IDENTIFIER with suffix: $BUNDLE_ID"
+          else
+            echo "No BUNDLE_ID_SUFFIX set, using default bundle ID from Config.xcconfig:"
+            grep "^BUNDLE_IDENTIFIER" "$CONFIG_FILE" || echo "(not set)"
+          fi
 
       # Patch Fastlane Match to not print tables
       - name: Patch Match Tables
