@@ -31,7 +31,7 @@ jobs:
           gh pr checkout ${{ vars.PR_NUMBER }} --repo nightscout/Trio --recurse-submodules
           git submodule
 
-      - name: Apply BUNDLE_ID_SUFFIX to Config.xcconfig
+      - name: Apply the optional repository variable `BUNDLE_ID_SUFFIX` to Config.xcconfig
         run: |
           CONFIG_FILE="Config.xcconfig"
           SUFFIX="${{ vars.BUNDLE_ID_SUFFIX }}"
