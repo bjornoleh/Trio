@@ -1,9 +1,9 @@
-name: Sync with nightscout/Trio dev
+name: Sync with nightscout/Trio dev (ff or merge)
 
 on:
-  workflow_dispatch:        # Manually triggerable
+  workflow_dispatch:
   #schedule:
-    #- cron: '0 3 * * *'     # Runs daily at 03:00 UTC
+    #- cron: '0 3 * * *'  # Daily at 03:00 UTC
 
 jobs:
   sync:
@@ -13,18 +13,23 @@ jobs:
       - name: Checkout current branch
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0    # Needed for full history and merges
+          fetch-depth: 0
 
       - name: Get current branch name
         id: branch
         run: echo "branch_name=$(git rev-parse --abbrev-ref HEAD)" >> $GITHUB_OUTPUT
 
-      - name: Add upstream and fetch dev branch
+      - name: Add upstream and fetch dev
         run: |
           git remote add upstream https://github.com/nightscout/Trio.git
           git fetch upstream dev
 
-      - name: Try fast-forward merge
+      - name: Set git user for merge commits
+        run: |
+          git config user.name "GitHub Action"
+          git config user.email "action@github.com"
+
+      - name: Attempt fast-forward merge
         id: ff_merge
         continue-on-error: true
         run: |
@@ -34,9 +39,9 @@ jobs:
       - name: Fallback to regular merge if ff-only failed
         if: steps.ff_merge.outcome == 'failure'
         run: |
-          echo "Fast-forward merge failed, performing normal merge..."
+          echo "Fast-forward failed, doing regular merge."
           git merge upstream/dev
 
-      - name: Push merged changes
+      - name: Push changes
         run: |
           git push origin ${{ steps.branch.outputs.branch_name }}
