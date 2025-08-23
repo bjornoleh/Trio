@@ -43,5 +43,8 @@ jobs:
           git merge upstream/dev
 
       - name: Push changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           git push origin ${{ steps.branch.outputs.branch_name }}
+        
