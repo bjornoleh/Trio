@@ -2,8 +2,10 @@ name: Sync with nightscout/Trio dev (ff or merge)
 
 on:
   workflow_dispatch:
-  #schedule:
-    #- cron: '0 3 * * *'  # Daily at 03:00 UTC
+
+permissions:
+  contents: write
+  workflows: write
 
 jobs:
   sync:
@@ -44,7 +46,7 @@ jobs:
 
       - name: Push changes
         env:
-          GH_PAT: ${{ secrets.GH_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git
           git push origin ${{ steps.branch.outputs.branch_name }}
-        
