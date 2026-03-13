@@ -24,6 +24,7 @@ extension Treatments {
         @State private var calculatorDetent = PresentationDetent.large
         @State private var pushed: Bool = false
         @State private var debounce: DispatchWorkItem?
+        @State private var showFatProteinOrderBanner = false
 
         private enum Config {
             static let dividerHeight: CGFloat = 2
@@ -37,7 +38,7 @@ extension Treatments {
             let formatter = NumberFormatter()
             formatter.numberStyle = .decimal
             formatter.maximumIntegerDigits = 2
-            formatter.maximumFractionDigits = 2
+            formatter.maximumFractionDigits = 3
             return formatter
         }
 
@@ -85,23 +86,6 @@ extension Treatments {
         @ViewBuilder private func proteinAndFat() -> some View {
             HStack {
                 HStack {
-                    Text("Protein")
-                    TextFieldWithToolBar(
-                        text: $state.protein,
-                        placeholder: "0",
-                        keyboardType: .numberPad,
-                        numberFormatter: mealFormatter,
-                        showArrows: true,
-                        previousTextField: { focusedField = previousField(from: .protein) },
-                        nextTextField: { focusedField = nextField(from: .protein) }
-                    )
-                    .focused($focusedField, equals: .protein)
-                    Text("g").foregroundColor(.secondary)
-                }
-
-                Divider().foregroundStyle(.primary).fontWeight(.bold).frame(width: 10)
-
-                HStack {
                     Text("Fat")
                     TextFieldWithToolBar(
                         text: $state.fat,
@@ -110,10 +94,27 @@ extension Treatments {
                         numberFormatter: mealFormatter,
                         showArrows: true,
                         previousTextField: { focusedField = previousField(from: .fat) },
-                        nextTextField: { focusedField = nextField(from: .fat) }
+                        nextTextField: { focusedField = nextField(from: .fat) },
+                        unitsText: String(localized: "g", comment: "Units for carbs")
                     )
                     .focused($focusedField, equals: .fat)
-                    Text("g").foregroundColor(.secondary)
+                }
+
+                Divider().foregroundStyle(.primary).fontWeight(.bold).frame(width: 10)
+
+                HStack {
+                    Text("Protein")
+                    TextFieldWithToolBar(
+                        text: $state.protein,
+                        placeholder: "0",
+                        keyboardType: .numberPad,
+                        numberFormatter: mealFormatter,
+                        showArrows: true,
+                        previousTextField: { focusedField = previousField(from: .protein) },
+                        nextTextField: { focusedField = nextField(from: .protein) },
+                        unitsText: String(localized: "g", comment: "Units for carbs")
+                    )
+                    .focused($focusedField, equals: .protein)
                 }
             }
         }
@@ -129,13 +130,13 @@ extension Treatments {
                     numberFormatter: mealFormatter,
                     showArrows: true,
                     previousTextField: { focusedField = previousField(from: .carbs) },
-                    nextTextField: { focusedField = nextField(from: .carbs) }
+                    nextTextField: { focusedField = nextField(from: .carbs) },
+                    unitsText: String(localized: "g", comment: "Units for carbs")
                 )
                 .focused($focusedField, equals: .carbs)
                 .onChange(of: state.carbs) {
                     handleDebouncedInput()
                 }
-                Text("g").foregroundColor(.secondary)
             }
         }
 
@@ -198,6 +199,23 @@ extension Treatments {
 
                             if state.useFPUconversion {
                                 proteinAndFat()
+
+                                if showFatProteinOrderBanner {
+                                    HStack {
+                                        Image(systemName: "arrow.left.arrow.right")
+                                        Text("The order of Fat and Protein inputs has changed.").font(.callout)
+                                        Spacer()
+                                        Button {
+                                            PropertyPersistentFlags.shared.hasSeenFatProteinOrderChange = true
+                                            withAnimation { showFatProteinOrderBanner = false }
+                                        } label: {
+                                            Image(systemName: "xmark.circle.fill")
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                    .listRowBackground(Color.orange.opacity(0.75))
+                                    .transition(.opacity)
+                                }
                             }
 
                             // Time
@@ -331,14 +349,14 @@ extension Treatments {
                                     numberFormatter: formatter,
                                     showArrows: true,
                                     previousTextField: { focusedField = previousField(from: .bolus) },
-                                    nextTextField: { focusedField = nextField(from: .bolus) }
+                                    nextTextField: { focusedField = nextField(from: .bolus) },
+                                    unitsText: String(localized: "U", comment: "Units for bolus amount")
                                 ).focused($focusedField, equals: .bolus)
                                     .onChange(of: state.amount) {
                                         Task {
                                             await state.updateForecasts()
                                         }
                                     }
-                                Text(" U").foregroundColor(.secondary)
                             }
 
                             HStack {
@@ -390,6 +408,10 @@ extension Treatments {
                     state.isActive = true
                     Task { @MainActor in
                         state.insulinCalculated = await state.calculateInsulin()
+                    }
+
+                    if PropertyPersistentFlags.shared.hasSeenFatProteinOrderChange != true {
+                        showFatProteinOrderBanner = true
                     }
                 }
             }

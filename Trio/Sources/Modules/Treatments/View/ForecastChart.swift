@@ -20,20 +20,6 @@ struct ForecastChart: View {
             )) // min is 1.5h -> (1.5*1h = 1.5*(5*12*60))
     }
 
-    private var glucoseFormatter: NumberFormatter {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-
-        if state.units == .mmolL {
-            formatter.maximumFractionDigits = 1
-            formatter.minimumFractionDigits = 1
-            formatter.roundingMode = .halfUp
-        } else {
-            formatter.maximumFractionDigits = 0
-        }
-        return formatter
-    }
-
     private var selectedGlucose: GlucoseStored? {
         guard let selection = selection else { return nil }
         let range = selection.addingTimeInterval(-150) ... selection.addingTimeInterval(150)
@@ -50,10 +36,8 @@ struct ForecastChart: View {
     }
 
     private var forecastChartLabels: some View {
-        // Check if carbs are actually backdated (more than 15 minutes in the past)
-        // This ensures we only consider it backdated if the user has deliberately changed the date
-        let minutesThreshold = 15.0 // 15 minutes threshold
-        let isBackdated = state.date.timeIntervalSinceNow < -minutesThreshold * 60 && state.simulatedDetermination != nil
+        // Check if this is a backdated entry by comparing with the default date using a tolerance
+        let isBackdated = abs(state.date.timeIntervalSince(state.defaultDate)) > 1.0
 
         // When backdated, display no carbs as this label is only supposed to show current entered carbs
         let displayedCarbs = isBackdated ? 0 : state.carbs
@@ -75,8 +59,11 @@ struct ForecastChart: View {
 
             HStack {
                 Image(systemName: "syringe.fill")
-                Text("\(state.amount.description) U")
+                Text(
+                    "\(Formatter.bolusFormatter.string(from: state.amount as NSNumber) ?? state.amount.description) "
+                ) + Text(String(localized: "U", comment: "Insulin unit"))
             }
+
             .font(.footnote)
             .foregroundStyle(.blue)
             .padding(8)
@@ -187,19 +174,19 @@ struct ForecastChart: View {
                 HStack(spacing: 10) {
                     HStack(spacing: 4) {
                         Image(systemName: "circle.fill").foregroundStyle(Color.insulin)
-                        Text("IOB").foregroundStyle(Color.secondary)
+                        Text(String(localized: "IOB")).foregroundStyle(Color.secondary)
                     }
                     HStack(spacing: 4) {
                         Image(systemName: "circle.fill").foregroundStyle(Color.uam)
-                        Text("UAM").foregroundStyle(Color.secondary)
+                        Text(String(localized: "UAM")).foregroundStyle(Color.secondary)
                     }
                     HStack(spacing: 4) {
                         Image(systemName: "circle.fill").foregroundStyle(Color.zt)
-                        Text("ZT").foregroundStyle(Color.secondary)
+                        Text(String(localized: "ZT")).foregroundStyle(Color.secondary)
                     }
                     HStack(spacing: 4) {
                         Image(systemName: "circle.fill").foregroundStyle(Color.orange)
-                        Text("COB").foregroundStyle(Color.secondary)
+                        Text(String(localized: "COB")).foregroundStyle(Color.secondary)
                     }
                 }.font(.caption2)
             }

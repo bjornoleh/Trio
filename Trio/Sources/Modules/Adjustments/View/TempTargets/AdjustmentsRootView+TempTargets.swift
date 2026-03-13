@@ -144,13 +144,7 @@ extension Adjustments.RootView {
                 .clipShape(Rectangle())
 
             Button(action: {
-                Task {
-                    // Save cancelled Temp Targets in TempTargetRunStored Entity
-                    // Cancel ALL active Temp Targets
-                    await state.disableAllActiveTempTargets(createTempTargetRunEntry: true)
-                    // Update View
-                    state.updateLatestTempTargetConfiguration()
-                }
+                showCancelTempTargetConfirmDialog = true
             }, label: {
                 Text("Stop Temp Target")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -178,7 +172,11 @@ extension Adjustments.RootView {
                 .RawValue ?? Double(state.settingHalfBasalTarget)
         )
         let percentage = Int(
-            state.computeAdjustedPercentage(usingHBT: tempTargetHalfBasal, usingTarget: tempTargetValue)
+            TempTargetCalculations.computeAdjustedPercentage(
+                halfBasalTarget: tempTargetHalfBasal,
+                target: tempTargetValue,
+                autosensMax: state.autosensMax
+            )
         )
         let remainingTime = tempTarget.date?.timeIntervalSinceNow ?? 0
 

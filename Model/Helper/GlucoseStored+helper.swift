@@ -20,14 +20,6 @@ extension GlucoseStored {
         return request
     }
 
-    static func glucoseIsFlat(_ glucose: [GlucoseStored]) -> Bool {
-        guard glucose.count >= 6 else { return false }
-
-        let firstValue = glucose.first?.glucose
-
-        return glucose.allSatisfy { $0.glucose == firstValue }
-    }
-
     // Preview
     @discardableResult static func makePreviewGlucose(count: Int, provider: CoreDataStack) -> [GlucoseStored] {
         let context = provider.persistentContainer.viewContext

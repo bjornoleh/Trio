@@ -22,6 +22,8 @@ protocol DeviceDataManager: GlucoseSource {
     var recommendsLoop: PassthroughSubject<Void, Never> { get }
     var bolusTrigger: PassthroughSubject<Bool, Never> { get }
     var manualTempBasal: PassthroughSubject<Bool, Never> { get }
+    var scheduledBasal: PassthroughSubject<Bool?, Never> { get }
+    var suspended: PassthroughSubject<Bool, Never> { get }
     var errorSubject: PassthroughSubject<Error, Never> { get }
     var pumpName: CurrentValueSubject<String, Never> { get }
     var pumpExpiresAtDate: CurrentValueSubject<Date?, Never> { get }
@@ -68,6 +70,8 @@ final class BaseDeviceDataManager: DeviceDataManager, Injectable {
     let errorSubject = PassthroughSubject<Error, Never>()
     let pumpNewStatus = PassthroughSubject<Void, Never>()
     let manualTempBasal = PassthroughSubject<Bool, Never>()
+    let scheduledBasal = PassthroughSubject<Bool?, Never>()
+    let suspended = PassthroughSubject<Bool, Never>()
 
     private let router = TrioApp.resolver.resolve(Router.self)!
     @SyncAccess private var pumpUpdateCancellable: AnyCancellable?
@@ -77,11 +81,15 @@ final class BaseDeviceDataManager: DeviceDataManager, Injectable {
 
     var pumpManager: PumpManagerUI? {
         didSet {
-            pumpManager?.pumpManagerDelegate = self
-            pumpManager?.delegateQueue = processQueue
-            rawPumpManager = pumpManager?.rawValue
-            UserDefaults.standard.clearLegacyPumpManagerRawValue()
             if let pumpManager = pumpManager {
+                pumpManager.pumpManagerDelegate = self
+                pumpManager.delegateQueue = processQueue
+
+                /// Since the pump manager has been successfully instantiated from its saved state,
+                /// copy its rawValue to rawPumpManager which will be saved to persistant storage.
+                rawPumpManager = pumpManager.rawValue
+                UserDefaults.standard.clearLegacyPumpManagerRawValue()
+
                 pumpDisplayState.value = PumpDisplayState(name: pumpManager.localizedTitle, image: pumpManager.smallImage)
                 pumpName.send(pumpManager.localizedTitle)
 
@@ -94,7 +102,7 @@ final class BaseDeviceDataManager: DeviceDataManager, Injectable {
                         )
                 )
                 modifiedPreferences
-                    .bolusIncrement = bolusIncrement != 0.025 ? bolusIncrement : 0.1
+                    .bolusIncrement = bolusIncrement > 0 ? bolusIncrement : 0.1
                 storage.save(modifiedPreferences, as: OpenAPS.Settings.preferences)
 
                 if let omnipod = pumpManager as? OmnipodPumpManager {
@@ -411,6 +419,22 @@ extension BaseDeviceDataManager: PumpManagerDelegate {
             bolusTrigger.send(false)
         }
 
+        switch status.basalDeliveryState {
+        case let .active(at):
+            if at == .distantPast {
+                scheduledBasal.send(nil) // pump is not currently available
+            } else {
+                suspended.send(false)
+                scheduledBasal.send(true)
+            }
+        case .suspended:
+            suspended.send(true)
+            scheduledBasal.send(false)
+        default:
+            suspended.send(false)
+            scheduledBasal.send(false)
+        }
+
         if status.insulinType != oldStatus.insulinType {
             settingsManager.updateInsulinCurve(status.insulinType)
         }
@@ -572,7 +596,7 @@ extension BaseDeviceDataManager: PumpManagerDelegate {
 
 extension BaseDeviceDataManager: DeviceManagerDelegate {
     func issueAlert(_ alert: Alert) {
-        alertHistoryStorage.storeAlert(
+        alertHistoryStorage.addAlert(
             AlertEntry(
                 alertIdentifier: alert.identifier.alertIdentifier,
                 primitiveInterruptionLevel: alert.interruptionLevel.storedValue as? Decimal,
@@ -587,7 +611,7 @@ extension BaseDeviceDataManager: DeviceManagerDelegate {
     }
 
     func retractAlert(identifier: Alert.Identifier) {
-        alertHistoryStorage.deleteAlert(identifier: identifier.alertIdentifier)
+        alertHistoryStorage.removeAlert(identifier: identifier.alertIdentifier)
     }
 
     func doesIssuedAlertExist(identifier _: Alert.Identifier, completion _: @escaping (Result<Bool, Error>) -> Void) {
@@ -657,27 +681,12 @@ extension BaseDeviceDataManager: AlertObserver {
         let alertIssueDate = alert.issuedDate
 
         processQueue.async {
-            // if not alert in OmniPod/BLE, the acknowledgeAlert didn't do callbacks- Hack to manage this case
-            if let omnipodBLE = self.pumpManager as? OmniBLEPumpManager {
-                if omnipodBLE.state.activeAlerts.isEmpty {
-                    // force to ack alert in the alertStorage
-                    self.alertHistoryStorage.ackAlert(alertIssueDate, nil)
-                }
-            }
-
-            if let omniPod = self.pumpManager as? OmnipodPumpManager {
-                if omniPod.state.activeAlerts.isEmpty {
-                    // force to ack alert in the alertStorage
-                    self.alertHistoryStorage.ackAlert(alertIssueDate, nil)
-                }
-            }
-
             self.pumpManager?.acknowledgeAlert(alertIdentifier: alert.alertIdentifier) { error in
                 if let error = error {
-                    self.alertHistoryStorage.ackAlert(alertIssueDate, error.localizedDescription)
+                    self.alertHistoryStorage.acknowledgeAlert(alertIssueDate, error.localizedDescription)
                     debug(.deviceManager, "acknowledge not succeeded with error \(error)")
                 } else {
-                    self.alertHistoryStorage.ackAlert(alertIssueDate, nil)
+                    self.alertHistoryStorage.acknowledgeAlert(alertIssueDate, nil)
                 }
             }
 

@@ -1,26 +1,25 @@
 import CoreData
 import Foundation
 
-@available(iOS 16.0,*) final class CarbPresetIntentRequest: BaseIntentsRequest {
+final class CarbPresetIntentRequest: BaseIntentsRequest {
     func addCarbs(
-        _ quantityCarbs: Double,
-        _ quantityFat: Double,
-        _ quantityProtein: Double,
+        _ quantityCarbs: Int,
+        _ quantityFat: Int,
+        _ quantityProtein: Int,
         _ dateAdded: Date,
-        _ note: String?
+        _ note: String?,
+        _ dateDefinedByUser: Bool
     ) async throws -> String {
-        guard quantityCarbs >= 0.0 || quantityFat >= 0.0 || quantityProtein >= 0.0 else {
-            return "not adding carbs in Trio"
+        guard quantityCarbs >= 0 || quantityFat >= 0 || quantityProtein >= 0 else {
+            return "Amount must be positive."
         }
-
-        let carbs = min(Decimal(quantityCarbs), settingsManager.settings.maxCarbs)
 
         try await carbsStorage.storeCarbs(
             [CarbsEntry(
                 id: UUID().uuidString,
                 createdAt: dateAdded,
                 actualDate: dateAdded,
-                carbs: carbs,
+                carbs: Decimal(quantityCarbs),
                 fat: Decimal(quantityFat),
                 protein: Decimal(quantityProtein),
                 note: (note?.isEmpty ?? true) ? "Via Shortcut" : note!,
@@ -30,15 +29,51 @@ import Foundation
             areFetchedFromRemote: false
         )
         var resultDisplay: String
-        resultDisplay = "\(carbs) g carbs"
-        if quantityFat > 0.0 {
-            resultDisplay = "\(resultDisplay) and \(quantityFat) g fats"
+        resultDisplay = String(localized: "Added \(quantityCarbs) g carbs")
+        if quantityFat > 0 {
+            resultDisplay = String(localized: "\(resultDisplay) and \(quantityFat) g fat")
         }
-        if quantityProtein > 0.0 {
-            resultDisplay = "\(resultDisplay) and \(quantityProtein) g protein"
+        if quantityProtein > 0 {
+            resultDisplay = String(localized: "\(resultDisplay) and \(quantityProtein) g protein")
         }
-        let dateName = dateAdded.formatted()
-        resultDisplay = "\(resultDisplay) added at \(dateName)"
+        if dateDefinedByUser {
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateStyle = .none
+            dateFormatter.timeStyle = .short
+
+            let hourName = dateFormatter.string(from: dateAdded)
+            resultDisplay = String(localized: "\(resultDisplay) at \(hourName)")
+
+            let dayStatus = determineDateStatus(dateAdded)
+            if let dayStatus = dayStatus {
+                resultDisplay = String(localized: "\(resultDisplay)  \(dayStatus)")
+            }
+        }
+
         return resultDisplay
+    }
+
+    func determineDateStatus(_ date: Date) -> LocalizedStringResource? {
+        let calendar = Calendar.current
+        let now = Date()
+
+        let dateStartOfDay = calendar.startOfDay(for: date)
+        let nowStartOfDay = calendar.startOfDay(for: now)
+
+        let components = calendar.dateComponents([.day], from: nowStartOfDay, to: dateStartOfDay)
+
+        if let dayDifference = components.day {
+            switch dayDifference {
+            case -1:
+                return LocalizedStringResource(stringLiteral: "Yesterday")
+            case 0:
+                return nil
+            case 1:
+                return LocalizedStringResource(stringLiteral: "Tomorrow")
+            default:
+                return nil
+            }
+        }
+        return nil
     }
 }
