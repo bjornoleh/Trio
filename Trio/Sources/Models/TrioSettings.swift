@@ -30,14 +30,6 @@ struct TrioSettings: JSON, Equatable, Encodable {
     var displayCalendarIOBandCOB: Bool = false
     var displayCalendarEmojis: Bool = false
     var glucoseBadge: Bool = false
-    var notificationsPump: Bool = true
-    var notificationsCgm: Bool = true
-    var notificationsCarb: Bool = true
-    var notificationsAlgorithm: Bool = true
-    var glucoseNotificationsOption: GlucoseNotificationsOption = .onlyAlarmLimits
-    var addSourceInfoToGlucoseNotifications: Bool = false
-    var lowGlucose: Decimal = 72
-    var highGlucose: Decimal = 270
     var carbsRequiredThreshold: Decimal = 10
     var showCarbsRequiredBadge: Bool = true
     var useFPUconversion: Bool = false
@@ -49,7 +41,7 @@ struct TrioSettings: JSON, Equatable, Encodable {
     var eA1cDisplayUnit: EstimatedA1cDisplayUnit = .percent
     var high: Decimal = 180
     var low: Decimal = 70
-    var glucoseColorScheme: GlucoseColorScheme = .staticColor
+    var glucoseColorScheme: GlucoseColorScheme = .dynamicColor
     var xGridLines: Bool = true
     var yGridLines: Bool = true
     var hideInsulinBadge: Bool = false
@@ -63,6 +55,7 @@ struct TrioSettings: JSON, Equatable, Encodable {
     var maxFat: Decimal = 250
     var maxProtein: Decimal = 250
     var confirmBolusFaster: Bool = false
+    var showForecastWatch: Bool = false
     var overrideFactor: Decimal = 0.8
     var fattyMeals: Bool = false
     var fattyMealFactor: Decimal = 0.7
@@ -70,11 +63,14 @@ struct TrioSettings: JSON, Equatable, Encodable {
     var sweetMealFactor: Decimal = 1
     var displayPresets: Bool = true
     var confirmBolus: Bool = false
+    var enableQuickBolus: Bool = false
     var useLiveActivity: Bool = false
     var lockScreenView: LockScreenView = .simple
     var smartStackView: LockScreenView = .simple
+    var displayGlucoseForecasts: Bool = false
     var bolusShortcut: BolusShortcutLimit = .notAllowed
     var timeInRangeType: TimeInRangeType = .timeInTightRange
+    var homeStatsPanelFace: HomeStatsPanelFace = .timeInRange
     var requireAdjustmentsConfirmation: Bool = false
 
     /// Selected Garmin watchface (Trio or SwissAlpine)
@@ -213,44 +209,6 @@ extension TrioSettings: Decodable {
             settings.delay = delay
         }
 
-        if let notificationsPump = try? container.decode(Bool.self, forKey: .notificationsPump) {
-            settings.notificationsPump = notificationsPump
-        }
-
-        if let notificationsCgm = try? container.decode(Bool.self, forKey: .notificationsCgm) {
-            settings.notificationsCgm = notificationsCgm
-        }
-
-        if let notificationsCarb = try? container.decode(Bool.self, forKey: .notificationsCarb) {
-            settings.notificationsCarb = notificationsCarb
-        }
-
-        if let notificationsAlgorithm = try? container.decode(Bool.self, forKey: .notificationsAlgorithm) {
-            settings.notificationsAlgorithm = notificationsAlgorithm
-        }
-
-        if let glucoseNotificationsOption = try? container.decode(
-            GlucoseNotificationsOption.self,
-            forKey: .glucoseNotificationsOption
-        ) {
-            settings.glucoseNotificationsOption = glucoseNotificationsOption
-        }
-
-        if let addSourceInfoToGlucoseNotifications = try? container.decode(
-            Bool.self,
-            forKey: .addSourceInfoToGlucoseNotifications
-        ) {
-            settings.addSourceInfoToGlucoseNotifications = addSourceInfoToGlucoseNotifications
-        }
-
-        if let lowGlucose = try? container.decode(Decimal.self, forKey: .lowGlucose) {
-            settings.lowGlucose = lowGlucose
-        }
-
-        if let highGlucose = try? container.decode(Decimal.self, forKey: .highGlucose) {
-            settings.highGlucose = highGlucose
-        }
-
         if let carbsRequiredThreshold = try? container.decode(Decimal.self, forKey: .carbsRequiredThreshold) {
             settings.carbsRequiredThreshold = carbsRequiredThreshold
         }
@@ -331,12 +289,20 @@ extension TrioSettings: Decodable {
             settings.confirmBolusFaster = confirmBolusFaster
         }
 
+        if let showForecastWatch = try? container.decode(Bool.self, forKey: .showForecastWatch) {
+            settings.showForecastWatch = showForecastWatch
+        }
+
         if let displayPresets = try? container.decode(Bool.self, forKey: .displayPresets) {
             settings.displayPresets = displayPresets
         }
 
         if let confirmBolus = try? container.decode(Bool.self, forKey: .confirmBolus) {
             settings.confirmBolus = confirmBolus
+        }
+
+        if let enableQuickBolus = try? container.decode(Bool.self, forKey: .enableQuickBolus) {
+            settings.enableQuickBolus = enableQuickBolus
         }
 
         if let useLiveActivity = try? container.decode(Bool.self, forKey: .useLiveActivity) {
@@ -351,12 +317,20 @@ extension TrioSettings: Decodable {
             settings.smartStackView = smartStackView
         }
 
+        if let displayGlucoseForecasts = try? container.decode(Bool.self, forKey: .displayGlucoseForecasts) {
+            settings.displayGlucoseForecasts = displayGlucoseForecasts
+        }
+
         if let bolusShortcut = try? container.decode(BolusShortcutLimit.self, forKey: .bolusShortcut) {
             settings.bolusShortcut = bolusShortcut
         }
 
         if let timeInRangeType = try? container.decode(TimeInRangeType.self, forKey: .timeInRangeType) {
             settings.timeInRangeType = timeInRangeType
+        }
+
+        if let homeStatsPanelFace = try? container.decode(HomeStatsPanelFace.self, forKey: .homeStatsPanelFace) {
+            settings.homeStatsPanelFace = homeStatsPanelFace
         }
 
         if let requireAdjustmentsConfirmation = try? container.decode(Bool.self, forKey: .requireAdjustmentsConfirmation) {
