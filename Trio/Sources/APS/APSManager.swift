@@ -30,6 +30,10 @@ protocol APSManager {
     func enactTempBasal(rate: Double, duration: TimeInterval) async
     func determineBasal() async throws
     func determineBasalSync() async throws
+    /// Recomputes the determination after something the algorithm reads has changed — an override,
+    /// a temp target. Skips itself while a loop is running, because that loop determines from the
+    /// same state, and never delays a loop start.
+    func recomputeDetermination() async
     func simulateDetermineBasal(
         simulatedCarbsAmount: Decimal,
         simulatedBolusAmount: Decimal,
@@ -76,6 +80,7 @@ enum APSError: LocalizedError {
 /// Ensures only one loop runs at a time via actor isolation
 private actor LoopGuard {
     private var isRunning = false
+    private var isRecomputing = false
 
     /// Atomically checks whether a new loop can start and marks it as running if so.
     func tryStart(minInterval: TimeInterval, lastLoopDate: Date, lastLoopStartDate: Date) -> Bool {
@@ -90,6 +95,19 @@ private actor LoopGuard {
 
     func finish() {
         isRunning = false
+    }
+
+    /// Claims the guard for a determination-only recompute. Refuses while a loop runs, and while
+    /// another recompute runs — a second one would compute the same state. `tryStart` ignores this
+    /// claim: a skipped loop has a therapy cost, an overlapping recompute only wastes work.
+    func tryStartRecompute() -> Bool {
+        guard !isRunning, !isRecomputing else { return false }
+        isRecomputing = true
+        return true
+    }
+
+    func finishRecompute() {
+        isRecomputing = false
     }
 }
 
@@ -556,6 +574,19 @@ final class BaseAPSManager: APSManager, Injectable {
 
     func determineBasalSync() async throws {
         _ = try await determineBasal()
+    }
+
+    func recomputeDetermination() async {
+        guard await loopGuard.tryStartRecompute() else {
+            debug(.apsManager, "Determination recompute skipped: loop or recompute in flight")
+            return
+        }
+        do {
+            try await determineBasal()
+        } catch {
+            debug(.apsManager, "Determination recompute failed: \(error)")
+        }
+        await loopGuard.finishRecompute()
     }
 
     func simulateDetermineBasal(

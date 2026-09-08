@@ -40,5 +40,11 @@ class TestAssembly: Assembly {
         container.register(OverrideStorage.self) { r in
             BaseOverrideStorage(resolver: r, contextProvider: { self.testContext })
         }.inObjectScope(.container)
+
+        // Override AdjustmentManager registration for tests: same context as the storages, and the
+        // determination step stubbed out so the algorithm stays out of the transaction tests.
+        container.register(AdjustmentManager.self) { r in
+            BaseAdjustmentManager(resolver: r, contextProvider: { self.testContext }, recompute: {})
+        }.inObjectScope(.container)
     }
 }
