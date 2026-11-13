@@ -2,6 +2,7 @@ import Combine
 import CoreData
 import Foundation
 import OSLog
+import UIKit
 
 class CoreDataStack: ObservableObject {
     static let shared = CoreDataStack()
@@ -128,10 +129,10 @@ class CoreDataStack: ObservableObject {
         do {
             try await fetchPersistentHistoryTransactionsAndChanges()
         } catch let error as NSError where error.code == NSPersistentHistoryTokenExpiredError {
-            debug(.coreData, "Persistent history token expired; clearing token and replaying available history.")
+            warning(.storage, "Persistent history token expired, replaying available history")
             await recoverFromExpiredHistoryToken()
         } catch {
-            debug(.coreData, "\(error)")
+            warning(.storage, "Fetching persistent history failed", error: error)
         }
     }
 
@@ -141,7 +142,7 @@ class CoreDataStack: ObservableObject {
         do {
             try await fetchPersistentHistoryTransactionsAndChanges()
         } catch {
-            debug(.coreData, "Replay after token reset failed; jumping to current token. \(error)")
+            warning(.storage, "Replaying persistent history failed, jumping to current token", error: error)
             let viewContext = persistentContainer.viewContext
             let currentToken = persistentContainer.persistentStoreCoordinator
                 .currentPersistentHistoryToken(fromStores: nil)
@@ -200,12 +201,9 @@ class CoreDataStack: ObservableObject {
             let deleteHistoryTokensRequest = NSPersistentHistoryChangeRequest.deleteHistory(before: date)
             do {
                 try taskContext.execute(deleteHistoryTokensRequest)
-                debug(.coreData, "\(DebuggingIdentifiers.succeeded) Successfully deleted persistent history from before \(date)")
+                debug(.storage, "Deleted persistent history before \(date)")
             } catch {
-                debug(
-                    .coreData,
-                    "\(DebuggingIdentifiers.failed) Failed to delete persistent history from before \(date): \(error)"
-                )
+                warning(.storage, "Deleting persistent history before \(date) failed", error: error)
             }
         }
     }
@@ -229,7 +227,7 @@ class CoreDataStack: ObservableObject {
                 Task { await self?.fetchPersistentHistory() }
             }
 
-        debug(.coreData, "Set up persistent store change notifications")
+        debug(.storage, "Set up persistent store change notifications")
     }
 
     /// Loads the persistent stores asynchronously.
@@ -243,10 +241,10 @@ class CoreDataStack: ObservableObject {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             persistentContainer.loadPersistentStores { storeDescription, error in
                 if let error = error {
-                    warning(.coreData, "Failed to load persistent stores: \(error)")
+                    warning(.storage, "Loading persistent stores failed", error: error)
                     continuation.resume(throwing: error)
                 } else {
-                    debug(.coreData, "Successfully loaded persistent store: \(storeDescription.url?.absoluteString ?? "unknown")")
+                    debug(.storage, "Loaded persistent store \(storeDescription.url?.lastPathComponent ?? "unknown")")
                     continuation.resume(returning: ())
                 }
             }
@@ -288,26 +286,87 @@ class CoreDataStack: ObservableObject {
 
             setupPersistentStoreChangeNotifications()
 
-            debug(.coreData, "Core Data stack initialized successfully")
+            info(.storage, "Core Data stack initialized")
 
-        } catch {
-            debug(.coreData, "Failed to initialize Core Data stack: \(error)")
+        } catch let initError {
+            warning(.storage, "Core Data stack initialization failed", error: initError)
 
             // If we still have retries left, try again after a delay
             if retryCount < maxRetries {
-                debug(.coreData, "Retrying initialization (\(retryCount + 1)/\(maxRetries))")
+                debug(.storage, "Retrying Core Data initialization (\(retryCount + 1)/\(maxRetries))")
 
-                // Wait before retrying
-                try await Task.sleep(for: .seconds(1))
+                // Before the first unlock after a restart the store is unreadable, so wait for the unlock
+                if Self.isProtectedDataUnavailableError(initError) {
+                    await Self.waitForProtectedData()
+                } else {
+                    try await Task.sleep(for: .seconds(1))
+                }
 
                 // Retry the initialization
                 try await initializeStack(retryCount: retryCount + 1)
             } else {
                 // We've exhausted our retries
-                debug(.coreData, "Core Data initialization failed after \(maxRetries) attempts")
-                throw error
+                error(.storage, "Core Data initialization failed after \(maxRetries) attempts")
+                throw initError
             }
         }
+    }
+}
+
+// MARK: - Protected Data
+
+extension CoreDataStack {
+    /// After a restart, iOS can launch Trio in the background before the first unlock, when the store file
+    /// is unreadable and SQLite reports SQLITE_AUTH (23). `isProtectedDataAvailable` alone can't tell this
+    /// apart from an ordinary lock, during which the store stays readable.
+    static func isProtectedDataUnavailableError(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        if (nsError.userInfo[NSSQLiteErrorDomain] as? Int) == 23 {
+            return true
+        }
+        if let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? Error {
+            return isProtectedDataUnavailableError(underlying)
+        }
+        return false
+    }
+
+    /// Waits until protected data is available, i.e. the device has been unlocked.
+    @MainActor static func waitForProtectedData(
+        isAvailable: @MainActor() -> Bool = { UIApplication.shared.isProtectedDataAvailable },
+        notificationCenter: Foundation.NotificationCenter = .default
+    ) async {
+        guard !isAvailable() else { return }
+        info(.storage, "Waiting for the first unlock before opening the Core Data store")
+
+        final class Waiter {
+            var observer: NSObjectProtocol?
+            var continuation: CheckedContinuation<Void, Never>?
+        }
+        let waiter = Waiter()
+
+        await withCheckedContinuation { continuation in
+            waiter.continuation = continuation
+            let finish = {
+                guard let continuation = waiter.continuation else { return }
+                waiter.continuation = nil
+                if let observer = waiter.observer {
+                    notificationCenter.removeObserver(observer)
+                }
+                continuation.resume()
+            }
+            waiter.observer = notificationCenter.addObserver(
+                forName: UIApplication.protectedDataDidBecomeAvailableNotification,
+                object: nil,
+                queue: .main
+            ) { _ in
+                MainActor.assumeIsolated { finish() }
+            }
+            // An unlock between the first check and adding the observer would otherwise be missed
+            if isAvailable() {
+                finish()
+            }
+        }
+        info(.storage, "Device unlocked, opening the Core Data store")
     }
 }
 
@@ -318,7 +377,6 @@ extension CoreDataStack {
     ///  - Tag: synchronousDelete
     func deleteObject(identifiedBy objectID: NSManagedObjectID) async {
         let viewContext = persistentContainer.viewContext
-        debug(.coreData, "Start deleting data from the store ...\(DebuggingIdentifiers.inProgress)")
 
         await viewContext.perform {
             do {
@@ -327,9 +385,9 @@ extension CoreDataStack {
 
                 guard viewContext.hasChanges else { return }
                 try viewContext.save()
-                debug(.coreData, "Successfully deleted data. \(DebuggingIdentifiers.succeeded)")
+                debug(.storage, "Deleted object")
             } catch {
-                debug(.coreData, "Failed to delete data: \(error)")
+                warning(.storage, "Deleting object failed", error: error)
             }
         }
     }
@@ -353,21 +411,21 @@ extension CoreDataStack {
             throw CoreDataError.validationError(function: callingFunction, file: callingClass)
         }
 
-        // Fetch all the objects that are older than the specified days
-        let fetchRequest = NSFetchRequest<NSManagedObjectID>(entityName: String(describing: objectType))
-
-        // Construct the predicate
-        var predicates: [NSPredicate] = [NSPredicate(format: "%K < %@", dateKey, targetDate as NSDate)]
-        if let isPresetKey = isPresetKey {
-            predicates.append(NSPredicate(format: "%K == NO", isPresetKey))
-        }
-        fetchRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
-        fetchRequest.resultType = .managedObjectIDResultType
-
         do {
             // Execute the Fetch Request
             let objectIDs = try await taskContext.perform {
-                try taskContext.fetch(fetchRequest)
+                // Fetch all the objects that are older than the specified days
+                let fetchRequest = NSFetchRequest<NSManagedObjectID>(entityName: String(describing: objectType))
+
+                // Construct the predicate
+                var predicates: [NSPredicate] = [NSPredicate(format: "%K < %@", dateKey, targetDate as NSDate)]
+                if let isPresetKey = isPresetKey {
+                    predicates.append(NSPredicate(format: "%K == NO", isPresetKey))
+                }
+                fetchRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
+                fetchRequest.resultType = .managedObjectIDResultType
+
+                return try taskContext.fetch(fetchRequest)
             }
 
             // Guard check if there are NSManagedObjects older than the specified days
@@ -383,14 +441,13 @@ extension CoreDataStack {
                       let batchDeleteResult = fetchResult as? NSBatchDeleteResult,
                       let success = batchDeleteResult.result as? Bool, success
                 else {
-                    debug(.coreData, "Failed to execute batch delete request \(DebuggingIdentifiers.failed)")
                     throw CoreDataError.batchDeleteError(function: callingFunction, file: callingClass)
                 }
             }
 
-            debug(.coreData, "Successfully deleted data older than \(days) days. \(DebuggingIdentifiers.succeeded)")
+            debug(.storage, "Deleted \(objectType) older than \(days) days")
         } catch {
-            debug(.coreData, "Failed to fetch or delete data: \(error) \(DebuggingIdentifiers.failed)")
+            warning(.storage, "Deleting \(objectType) older than \(days) days failed", error: error)
             throw CoreDataError.unexpectedError(error: error, function: callingFunction, file: callingClass)
         }
     }
@@ -413,14 +470,14 @@ extension CoreDataStack {
             throw CoreDataError.validationError(function: callingFunction, file: callingClass)
         }
 
-        // Fetch Parent objects older than the target date
-        let fetchParentRequest = NSFetchRequest<NSManagedObjectID>(entityName: String(describing: parentType))
-        fetchParentRequest.predicate = NSPredicate(format: "%K < %@", dateKey, targetDate as NSDate)
-        fetchParentRequest.resultType = .managedObjectIDResultType
-
         do {
             let parentObjectIDs = try await taskContext.perform {
-                try taskContext.fetch(fetchParentRequest)
+                // Fetch Parent objects older than the target date
+                let fetchParentRequest = NSFetchRequest<NSManagedObjectID>(entityName: String(describing: parentType))
+                fetchParentRequest.predicate = NSPredicate(format: "%K < %@", dateKey, targetDate as NSDate)
+                fetchParentRequest.resultType = .managedObjectIDResultType
+
+                return try taskContext.fetch(fetchParentRequest)
             }
 
             guard !parentObjectIDs.isEmpty else {
@@ -428,13 +485,13 @@ extension CoreDataStack {
                 return
             }
 
-            // Fetch Child objects related to the fetched Parent objects
-            let fetchChildRequest = NSFetchRequest<NSManagedObjectID>(entityName: String(describing: childType))
-            fetchChildRequest.predicate = NSPredicate(format: "ANY %K IN %@", relationshipKey, parentObjectIDs)
-            fetchChildRequest.resultType = .managedObjectIDResultType
-
             let childObjectIDs = try await taskContext.perform {
-                try taskContext.fetch(fetchChildRequest)
+                // Fetch Child objects related to the fetched Parent objects
+                let fetchChildRequest = NSFetchRequest<NSManagedObjectID>(entityName: String(describing: childType))
+                fetchChildRequest.predicate = NSPredicate(format: "ANY %K IN %@", relationshipKey, parentObjectIDs)
+                fetchChildRequest.resultType = .managedObjectIDResultType
+
+                return try taskContext.fetch(fetchChildRequest)
             }
 
             guard !childObjectIDs.isEmpty else {
@@ -449,17 +506,13 @@ extension CoreDataStack {
                       let batchDeleteResult = fetchResult as? NSBatchDeleteResult,
                       let success = batchDeleteResult.result as? Bool, success
                 else {
-                    debug(.coreData, "Failed to execute batch delete request \(DebuggingIdentifiers.failed)")
                     throw CoreDataError.batchDeleteError(function: callingFunction, file: callingClass)
                 }
             }
 
-            debug(
-                .coreData,
-                "Successfully deleted \(childType) data related to \(parentType) objects older than \(days) days. \(DebuggingIdentifiers.succeeded)"
-            )
+            debug(.storage, "Deleted \(childType) of \(parentType) older than \(days) days")
         } catch {
-            debug(.coreData, "Failed to fetch or delete data: \(error) \(DebuggingIdentifiers.failed)")
+            warning(.storage, "Deleting \(childType) of \(parentType) older than \(days) days failed", error: error)
             throw CoreDataError.unexpectedError(error: error, function: callingFunction, file: callingClass)
         }
     }
@@ -506,7 +559,7 @@ extension CoreDataStack {
                 } else {
                     return try context.fetch(request) as? [T] ?? []
                 }
-            } catch let error as NSError {
+            } catch {
                 throw CoreDataError.fetchError(
                     function: callingFunction,
                     file: callingClass
@@ -603,8 +656,8 @@ extension CoreDataStack {
 
         do {
             try context.save()
-        } catch {
-            debug(.coreData, "Error saving context \(DebuggingIdentifiers.failed): \(error)")
+        } catch let saveError {
+            error(.storage, "Saving view context failed", error: saveError)
         }
     }
 }
@@ -620,15 +673,9 @@ extension NSManagedObjectContext {
         do {
             guard onContext.hasChanges else { return }
             try onContext.save()
-            debug(
-                .coreData,
-                "Saving to Core Data successful in \(callingFunction) in \(callingClass): \(DebuggingIdentifiers.succeeded)"
-            )
+            debug(.storage, "Saved context in \(callingClass) \(callingFunction)")
         } catch let error as NSError {
-            debug(
-                .coreData,
-                "Saving to Core Data failed in \(callingFunction) in \(callingClass): \(DebuggingIdentifiers.failed) with error \(error), \(error.userInfo)"
-            )
+            warning(.storage, "Saving context in \(callingClass) \(callingFunction) failed", error: error)
             throw error
         }
     }

@@ -4,36 +4,50 @@ import WatchConnectivity
 // MARK: - Send Data to Phone
 
 extension WatchState {
+    /// Sends the entry confirmed with the crown: its carbs, if any, then the bolus.
+    /// Refuses an entry older than `entryLifetime` and clears it instead.
+    func sendConfirmedEntry(bolusAmount amount: Double, at now: Date = Date()) {
+        guard refuseIfExpired(at: now) == false else { return }
+
+        let carbs = carbsAmount
+        clearEntry()
+        if carbs > 0 {
+            sendCarbsRequest(carbs, now)
+        }
+        sendBolusRequest(Decimal(amount))
+    }
+
+    /// Sends a carbs-only entry ("Log Carbs"). Refuses an entry older than `entryLifetime` and clears it instead.
+    func sendCarbsEntry(_ amount: Int, at now: Date = Date()) {
+        guard refuseIfExpired(at: now) == false else { return }
+
+        clearEntry()
+        sendCarbsRequest(amount, now)
+    }
+
+    private func refuseIfExpired(at now: Date) -> Bool {
+        guard !isEntryFresh(at: now) else { return false }
+        WatchLogger.shared.warning(.treatments, "Entry older than \(Int(Self.entryLifetime / 60)) min not sent")
+        clearEntry()
+        handleRequestNotSent(Self.entryExpiredMessage)
+        return true
+    }
+
     /// Sends a bolus insulin request to the paired iPhone
     /// - Parameters:
     ///   - amount: The insulin amount to be delivered
     func sendBolusRequest(_ amount: Decimal) {
-        guard let session = session, session.isReachable else {
-            Task {
-                await WatchLogger.shared.log("⌚️ Bolus request aborted: session unreachable")
-            }
+        guard amount > 0 else {
+            WatchLogger.shared.warning(.bolus, "Bolus of \(amount) U not sent, amount must be above 0")
+            handleRequestNotSent(Self.invalidBolusAmountMessage)
             return
         }
 
-        Task {
-            await WatchLogger.shared.log("⌚️ Sending bolus request: \(amount)U")
-        }
+        guard let session = reachableSession(.bolus, notSentLog: "Bolus request not sent, phone unreachable") else { return }
 
-        let message: [String: Any] = [
-            WatchMessageKeys.bolus: amount
-        ]
+        WatchLogger.shared.info(.bolus, "Bolus of \(amount) U requested")
 
-        session.sendMessage(message, replyHandler: nil) { error in
-            Task {
-                await WatchLogger.shared.log("Error sending bolus request: \(error)")
-            }
-        }
-
-        // Display pending communication animation
-        showCommsAnimation = true
-        Task {
-            await WatchLogger.shared.log("⌚️ showCommsAnimation = true")
-        }
+        send([WatchMessageKeys.bolus: amount], on: session, .bolus, failureLog: "Sending bolus request failed")
     }
 
     /// Sends a carbohydrate entry request to the paired iPhone
@@ -41,179 +55,109 @@ extension WatchState {
     ///   - amount: The amount of carbs in grams
     ///   - date: The timestamp for the carb entry (defaults to current time)
     func sendCarbsRequest(_ amount: Int, _ date: Date = Date()) {
-        guard let session = session, session.isReachable else {
-            Task {
-                await WatchLogger.shared.log("⌚️ Carbs request aborted: session unreachable")
-            }
-            return
-        }
+        guard let session = reachableSession(.treatments, notSentLog: "Carbs request not sent, phone unreachable") else { return }
 
-        Task {
-            await WatchLogger.shared.log("⌚️ Sending carbs request: \(amount)g at \(date)")
-        }
+        WatchLogger.shared.info(.treatments, "Carbs of \(amount) g requested for \(date)")
 
         let message: [String: Any] = [
             WatchMessageKeys.carbs: amount,
             WatchMessageKeys.date: date.timeIntervalSince1970
         ]
-
-        session.sendMessage(message, replyHandler: nil) { error in
-            Task {
-                await WatchLogger.shared.log("Error sending carbs request: \(error)")
-                await WatchLogger.shared.log("⌚️ Saving logs to disk as fallback!")
-                await WatchLogger.shared.persistLogsLocally()
-            }
-        }
-
-        // Display pending communication animation
-        showCommsAnimation = true
-        Task {
-            await WatchLogger.shared.log("⌚️ showCommsAnimation = true")
-        }
+        send(message, on: session, .treatments, failureLog: "Sending carbs request failed")
     }
 
     /// Sends a request to cancel the current override preset to the paired iPhone
     func sendCancelOverrideRequest() {
-        guard let session = session, session.isReachable else {
-            Task {
-                await WatchLogger.shared.log("⌚️ Cancel override request aborted: session unreachable")
-            }
-            return
-        }
+        guard let session = reachableSession(.treatments, notSentLog: "Override cancel not sent, phone unreachable")
+        else { return }
 
-        Task {
-            await WatchLogger.shared.log("⌚️ Sending cancel override request")
-        }
+        WatchLogger.shared.info(.treatments, "Override cancel requested")
 
-        let message: [String: Any] = [
-            WatchMessageKeys.cancelOverride: true
-        ]
-
-        session.sendMessage(message, replyHandler: nil) { error in
-            Task {
-                await WatchLogger.shared.log("⌚️ Error sending cancel override request: \(error)")
-                await WatchLogger.shared.log("⌚️ Saving logs to disk as fallback!")
-                await WatchLogger.shared.persistLogsLocally()
-            }
-        }
-
-        // Display pending communication animation
-        showCommsAnimation = true
-        Task {
-            await WatchLogger.shared.log("⌚️ showCommsAnimation = true")
-        }
+        send([WatchMessageKeys.cancelOverride: true], on: session, .treatments, failureLog: "Sending override cancel failed")
     }
 
     /// Sends a request to activate an override preset to the paired iPhone
     /// - Parameter presetName: The name of the override preset to activate
     func sendActivateOverrideRequest(presetName: String) {
-        guard let session = session, session.isReachable else {
-            Task {
-                await WatchLogger.shared.log("⌚️ Activate override request aborted: session unreachable")
-            }
-            return
-        }
+        guard let session = reachableSession(.treatments, notSentLog: "Override request not sent, phone unreachable")
+        else { return }
 
-        Task {
-            await WatchLogger.shared.log("⌚️ Sending activate override request for preset: \(presetName)")
-        }
+        WatchLogger.shared.info(.treatments, "Override preset \(presetName) requested")
 
-        let message: [String: Any] = [
-            WatchMessageKeys.activateOverride: presetName
-        ]
-
-        session.sendMessage(message, replyHandler: nil) { error in
-            Task {
-                await WatchLogger.shared.log("⌚️ Error sending activate override request: \(error)")
-                await WatchLogger.shared.log("⌚️ Saving logs to disk as fallback!")
-                await WatchLogger.shared.persistLogsLocally()
-            }
-        }
-
-        // Display pending communication animation
-        showCommsAnimation = true
-        Task {
-            await WatchLogger.shared.log("⌚️ showCommsAnimation = true")
-        }
+        send(
+            [WatchMessageKeys.activateOverride: presetName],
+            on: session,
+            .treatments,
+            failureLog: "Sending override request failed"
+        )
     }
 
     /// Sends a request to cancel the current temporary target to the paired iPhone
     func sendCancelTempTargetRequest() {
-        guard let session = session, session.isReachable else {
-            Task {
-                await WatchLogger.shared.log("⌚️ Cancel temp target request aborted: session unreachable")
-            }
-            return
-        }
+        guard let session = reachableSession(.treatments, notSentLog: "Temp target cancel not sent, phone unreachable")
+        else { return }
 
-        Task {
-            await WatchLogger.shared.log("⌚️ Sending cancel temp target request")
-        }
+        WatchLogger.shared.info(.treatments, "Temp target cancel requested")
 
-        let message: [String: Any] = [
-            WatchMessageKeys.cancelTempTarget: true
-        ]
-
-        session.sendMessage(message, replyHandler: nil) { error in
-            Task {
-                await WatchLogger.shared.log("⌚️ Error sending cancel temp target request: \(error)")
-                await WatchLogger.shared.log("⌚️ Saving logs to disk as fallback!")
-                await WatchLogger.shared.persistLogsLocally()
-            }
-        }
-
-        // Display pending communication animation
-        showCommsAnimation = true
-        Task {
-            await WatchLogger.shared.log("⌚️ showCommsAnimation = true")
-        }
+        send(
+            [WatchMessageKeys.cancelTempTarget: true],
+            on: session,
+            .treatments,
+            failureLog: "Sending temp target cancel failed"
+        )
     }
 
     /// Sends a request to activate a temporary target preset to the paired iPhone
     /// - Parameter presetName: The name of the temporary target preset to activate
     func sendActivateTempTargetRequest(presetName: String) {
+        guard let session = reachableSession(.treatments, notSentLog: "Temp target request not sent, phone unreachable")
+        else { return }
+
+        WatchLogger.shared.info(.treatments, "Temp target preset \(presetName) requested")
+
+        send(
+            [WatchMessageKeys.activateTempTarget: presetName],
+            on: session,
+            .treatments,
+            failureLog: "Sending temp target request failed"
+        )
+    }
+
+    /// The session when the phone can take a request; otherwise tells the user nothing was sent
+    private func reachableSession(_ category: WatchLogEntry.Category, notSentLog: String) -> WCSession? {
         guard let session = session, session.isReachable else {
-            Task {
-                await WatchLogger.shared.log("⌚️ Activate temp target request aborted: session unreachable")
-            }
-            return
+            WatchLogger.shared.warning(category, notSentLog)
+            handleRequestNotSent(Self.phoneUnreachableMessage)
+            return nil
         }
+        return session
+    }
 
-        Task {
-            await WatchLogger.shared.log("⌚️ Sending activate temp target request for preset: \(presetName)")
-        }
-
-        let message: [String: Any] = [
-            WatchMessageKeys.activateTempTarget: presetName
-        ]
+    /// Sends a treatment request and waits for the phone's acknowledgment
+    private func send(
+        _ message: [String: Any],
+        on session: WCSession,
+        _ category: WatchLogEntry.Category,
+        failureLog: String
+    ) {
+        beginAwaitingAcknowledgment()
 
         session.sendMessage(message, replyHandler: nil) { error in
-            Task {
-                await WatchLogger.shared.log("⌚️ Error sending activate temp target request: \(error)")
-                await WatchLogger.shared.log("⌚️ Saving logs to disk as fallback!")
-                await WatchLogger.shared.persistLogsLocally()
+            WatchLogger.shared.error(category, failureLog, error: error)
+            DispatchQueue.main.async {
+                self.handleMissingAcknowledgment()
             }
-        }
-
-        // Display pending communication animation
-        showCommsAnimation = true
-        Task {
-            await WatchLogger.shared.log("⌚️ showCommsAnimation = true")
         }
     }
 
     /// Sends a request to calculate a bolus recommendation based on the current carbs amount
     func requestBolusRecommendation() {
         guard let session = session, session.isReachable else {
-            Task {
-                await WatchLogger.shared.log("⌚️ Bolus recommendation request aborted: session unreachable")
-            }
+            WatchLogger.shared.warning(.bolus, "Bolus recommendation not requested, phone unreachable")
             return
         }
 
-        Task {
-            await WatchLogger.shared.log("⌚️ Requesting bolus recommendation for carbs: \(carbsAmount)")
-        }
+        WatchLogger.shared.debug(.bolus, "Bolus recommendation requested for \(carbsAmount) g carbs")
 
         // Show a progress indicator until the phone replies. This keeps the user from
         // tapping the (0 U) "Log Carbs" button before the recommendation has landed.
@@ -236,11 +180,7 @@ extension WatchState {
         ]
 
         session.sendMessage(message, replyHandler: nil) { error in
-            Task {
-                await WatchLogger.shared.log("Error requesting bolus recommendation: \(error)")
-                await WatchLogger.shared.log("⌚️ Saving logs to disk as fallback!")
-                await WatchLogger.shared.persistLogsLocally()
-            }
+            WatchLogger.shared.warning(.bolus, "Requesting bolus recommendation failed", error: error)
             DispatchQueue.main.async {
                 self.showBolusCalculationProgress = false
             }
@@ -249,38 +189,34 @@ extension WatchState {
 
     func requestWatchStateUpdate() {
         guard let session = session else {
-            Task {
-                await WatchLogger.shared.log("⌚️ No session available for state update")
-            }
+            WatchLogger.shared.warning(.connectivity, "No session for a state update")
             return
         }
 
         guard session.activationState == .activated else {
-            Task {
-                await WatchLogger.shared.log("⌚️ Session not activated. Activating...")
-            }
+            WatchLogger.shared.debug(.connectivity, "Session not activated, activating")
             session.activate()
             return
         }
 
         if session.isReachable {
-            Task {
-                await WatchLogger.shared.log("⌚️ Requesting WatchState update from iPhone")
-            }
+            WatchLogger.shared.debug(.data, "Requesting a state update from the phone")
 
             let message = [WatchMessageKeys.requestWatchUpdate: WatchMessageKeys.watchState]
 
             session.sendMessage(message, replyHandler: nil) { error in
-                Task {
-                    await WatchLogger.shared.log("⌚️ Error requesting WatchState update: \(error)")
-                    await WatchLogger.shared.log("⌚️ Saving logs to disk as fallback!")
-                    await WatchLogger.shared.persistLogsLocally()
-                }
+                WatchLogger.shared.warning(.connectivity, "Requesting a state update failed", error: error)
             }
         } else {
-            Task {
-                await WatchLogger.shared.log("⌚️ Phone not reachable for WatchState update")
-            }
+            WatchLogger.shared.debug(.connectivity, "Phone unreachable, state update not requested")
         }
+    }
+
+    /// Snoozes all alarms on the iPhone for the given duration. A duration of 0 ends the snooze.
+    func sendSnoozeRequest(minutes: Int) {
+        WatchLogger.shared.debug(.connectivity, "Sending snooze request: \(minutes) min")
+
+        snoozeUntilDate = minutes > 0 ? Date().addingTimeInterval(TimeInterval(minutes * 60)) : .distantPast
+        WatchNotificationHandler.shared.sendSnoozeRequest(minutes: minutes)
     }
 }
